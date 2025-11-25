@@ -107,6 +107,7 @@ if [ "${NODE_TYPE}" == "head" ]; then
     echo "Starting Ray HEAD node..."
     exec ray start --block --head --port 6379 \
         --node-ip-address "$VLLM_HOST_IP" \
+	--include-dashboard=True \
         --dashboard-host "0.0.0.0" \
         --dashboard-port 8265
 else

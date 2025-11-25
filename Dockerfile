@@ -89,3 +89,7 @@ WORKDIR $VLLM_BASE_DIR
 # Copy clustering script
 COPY run-cluster-node.sh $VLLM_BASE_DIR/
 RUN chmod +x $VLLM_BASE_DIR/run-cluster-node.sh
+
+# Install additional modules for Ray dashboard support
+RUN pip install ray[default]
+
