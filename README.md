@@ -1,6 +1,14 @@
+
 # vLLM Ray Cluster Node Docker for DGX Spark
 
 This repository contains the Docker configuration and startup scripts to run a multi-node vLLM inference cluster using Ray. It supports InfiniBand/RDMA (NCCL) and custom environment configuration for high-performance setups.
+
+## DISCLAIMER
+
+This repository is not affiliated with NVIDIA or their subsidiaries. The content is provided as a reference material only, not intended for production use.
+Some of the steps and parameters may be unnecessary, and some may be missing. This is a work in progress. Use at your own risk!
+
+The Dockerfile builds from the main branch of VLLM, so depending on when you run the build process, it may not be in fully funcioning state.
 
 ## 1\. Building the Docker Image
 
@@ -93,9 +101,9 @@ docker run --privileged --gpus all -it --rm \
 
 **Flags Explained:**
 
-  * `--net=host`: **Required.** Ray needs full control over network ports; port mapping is insufficient for multi-node clusters.
-  * `--ipc=host`: **Required.** Allows shared memory access for PyTorch/NCCL.
-  * `--privileged`: **Required for InfiniBand.** Grants the container access to RDMA devices (`/dev/infiniband`).
+  * `--net=host`: **Required.** Ray and NCCL need full access to host network interfaces.
+  * `--ipc=host`: **Recommended.** Allows shared memory access for PyTorch/NCCL. As an alternative, you can set it via `--shm-size=16g`.
+  * `--privileged`: **Recommended for InfiniBand.** Grants the container access to RDMA devices (`/dev/infiniband`). As an alternative, you can pass `--ulimit memlock=-1 --ulimit stack=67108864 --device=/dev/infiniband`.
 
 -----
 
@@ -118,6 +126,21 @@ Normally you would start it with the container like in the example above, but yo
 | `-e` | `--eth-if` | Ethernet interface name (e.g., `eth0`, `enp3s0`). | **Yes** |
 | `-i` | `--ib-if` | InfiniBand interface name (e.g., `ib0`, `rocep1s0f1`). | **Yes** |
 | `-m` | `--head-ip` | The IP address of the **Head Node**. | Only if role is `node` |
+
+
+**Hint**: to decide which interfaces to use, you can run `ibdev2netdev`. You will see an output like this:
+
+```
+rocep1s0f0 port 1 ==> enp1s0f0np0 (Down)
+rocep1s0f1 port 1 ==> enp1s0f1np1 (Up)
+roceP2p1s0f0 port 1 ==> enP2p1s0f0np0 (Down)
+roceP2p1s0f1 port 1 ==> enP2p1s0f1np1 (Up)
+```
+
+Each physical port on Spark has two pairs of logical interfaces in Linux. 
+Current NVIDIA guidance recommends using only one of them, in this case it would be `enp1s0f1np1` for Ethernet and `rocep1s0f1` for IB.
+
+You need to make sure you allocate IP addresses to them (no need to allocate IP to their "twins").
 
 ### Example: Starting inside the Head Node
 
@@ -174,8 +197,5 @@ And execute vllm command inside.
 
 ### Hardware Architecture
 
-**Note:** The Dockerfile defaults to `TORCH_CUDA_ARCH_LIST=12.1a` (NVIDIA GB10). If you are using different hardware, update the `ENV` variable in the Dockerfile before building:
+**Note:** The Dockerfile defaults to `TORCH_CUDA_ARCH_LIST=12.1a` (NVIDIA GB10). If you are using different hardware, update the `ENV` variable in the Dockerfile before building.
 
-  * **H100:** `9.0`
-  * **A100:** `8.0`
-  * **L40S:** `8.9`
