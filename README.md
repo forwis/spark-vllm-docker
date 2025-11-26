@@ -198,6 +198,21 @@ docker exec -it vllm_node
 
 And execute vllm command inside.
 
+## 5\. Benchmarking
+
+Follow the guidance in [VLLM Benchmark Suites](https://docs.vllm.ai/en/latest/contributing/benchmarks/) to download benchmarking dataset, and then run a benchmark with a command like this (assuming you are running on head node, otherwise specify `--host` parameter):
+
+```bash 
+vllm bench serve \
+  --backend vllm \
+  --model RedHatAI/Qwen3-VL-235B-A22B-Instruct-NVFP4 \
+  --endpoint /v1/completions   --dataset-name sharegpt \
+  --dataset-path ShareGPT_V3_unfiltered_cleaned_split.json \
+  --num-prompts 1 \
+  --port 8888 
+```
+
+Modify `--num-prompts` to benchmark concurrent requests - the command above will give you single request performance.
 
 ### Hardware Architecture
 
