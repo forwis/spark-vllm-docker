@@ -310,36 +310,67 @@ if [[ "$DAEMON_MODE" == "false" ]] || [[ "$ACTION" == "exec" ]]; then
     trap cleanup EXIT INT TERM HUP
 fi
 
-# Start Head Node
-echo "Starting Head Node on $HEAD_IP..."
-docker run -d --privileged --gpus all --rm \
-    --ipc=host --network host \
-    --name "$CONTAINER_NAME" \
-    -e NCCL_DEBUG=INFO -e NCCL_IGNORE_CPU_AFFINITY=1 \
-    -v ~/.cache/huggingface:/root/.cache/huggingface \
-    "$IMAGE_NAME" \
-    ./run-cluster-node.sh \
-    --role head \
-    --host-ip "$HEAD_IP" \
-    --eth-if "$ETH_IF" \
-    --ib-if "$IB_IF"
+# Check if cluster is already running
+check_cluster_running() {
+    local running=false
+    
+    # Check Head
+    if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        echo "Warning: Container '$CONTAINER_NAME' is already running on head node ($HEAD_IP)."
+        running=true
+    fi
+    
+    # Check Workers
+    for worker in "${WORKER_NODES[@]}"; do
+        if ssh "$worker" "docker ps --format '{{.Names}}' | grep -q '^${CONTAINER_NAME}$'"; then
+             echo "Warning: Container '$CONTAINER_NAME' is already running on worker node ($worker)."
+             running=true
+        fi
+    done
+    
+    if [[ "$running" == "true" ]]; then
+        echo "Cluster containers are already running. Please stop them first or use a different name."
+        exit 1
+    fi
+}
 
-# Start Worker Nodes
-for worker in "${WORKER_NODES[@]}"; do
-    echo "Starting Worker Node on $worker..."
-    ssh "$worker" "docker run -d --privileged --gpus all --rm \
+# Start Cluster Function
+start_cluster() {
+    check_cluster_running
+
+    # Start Head Node
+    echo "Starting Head Node on $HEAD_IP..."
+    docker run -d --privileged --gpus all --rm \
         --ipc=host --network host \
-        --name $CONTAINER_NAME \
+        --name "$CONTAINER_NAME" \
         -e NCCL_DEBUG=INFO -e NCCL_IGNORE_CPU_AFFINITY=1 \
         -v ~/.cache/huggingface:/root/.cache/huggingface \
-        $IMAGE_NAME \
+        "$IMAGE_NAME" \
         ./run-cluster-node.sh \
-        --role node \
-        --host-ip $worker \
-        --eth-if $ETH_IF \
-        --ib-if $IB_IF \
-        --head-ip $HEAD_IP"
-done
+        --role head \
+        --host-ip "$HEAD_IP" \
+        --eth-if "$ETH_IF" \
+        --ib-if "$IB_IF"
+
+    # Start Worker Nodes
+    for worker in "${WORKER_NODES[@]}"; do
+        echo "Starting Worker Node on $worker..."
+        ssh "$worker" "docker run -d --privileged --gpus all --rm \
+            --ipc=host --network host \
+            --name $CONTAINER_NAME \
+            -e NCCL_DEBUG=INFO -e NCCL_IGNORE_CPU_AFFINITY=1 \
+            -v ~/.cache/huggingface:/root/.cache/huggingface \
+            $IMAGE_NAME \
+            ./run-cluster-node.sh \
+            --role node \
+            --host-ip $worker \
+            --eth-if $ETH_IF \
+            --ib-if $IB_IF \
+            --head-ip $HEAD_IP"
+    done
+
+    wait_for_cluster
+}
 
 # Wait for Cluster Readiness
 wait_for_cluster() {
@@ -365,11 +396,11 @@ wait_for_cluster() {
 }
 
 if [[ "$ACTION" == "exec" ]]; then
-    wait_for_cluster
-    echo "Executing command: $COMMAND_TO_RUN"
-    eval "$COMMAND_TO_RUN"
+    start_cluster
+    echo "Executing command on head node: $COMMAND_TO_RUN"
+    docker exec -it "$CONTAINER_NAME" bash -i -c "$COMMAND_TO_RUN"
 elif [[ "$ACTION" == "start" ]]; then
-    wait_for_cluster
+    start_cluster
     if [[ "$DAEMON_MODE" == "true" ]]; then
         echo "Cluster started in background (Daemon mode)."
     else
