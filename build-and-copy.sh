@@ -8,11 +8,33 @@ START_TIME=$(date +%s)
 IMAGE_TAG="vllm-node"
 REBUILD_DEPS=false
 REBUILD_VLLM=false
-COPY_HOST=""
+COPY_HOSTS=()
 SSH_USER="$USER"
 NO_BUILD=false
 TRITON_REF="v3.5.1"
 VLLM_REF="main"
+TMP_IMAGE=""
+
+cleanup() {
+    if [ -n "$TMP_IMAGE" ] && [ -f "$TMP_IMAGE" ]; then
+        rm -f "$TMP_IMAGE"
+    fi
+}
+
+trap cleanup EXIT
+
+add_copy_hosts() {
+    local token part
+    for token in "$@"; do
+        IFS=',' read -ra PARTS <<< "$token"
+        for part in "${PARTS[@]}"; do
+            part="${part//[[:space:]]/}"
+            if [ -n "$part" ]; then
+                COPY_HOSTS+=("$part")
+            fi
+        done
+    done
+}
 
 # Help function
 usage() {
@@ -22,10 +44,11 @@ usage() {
     echo "  --rebuild-vllm            : Set cache bust for vllm"
     echo "  --triton-ref <ref>        : Triton commit SHA, branch or tag (default: 'v3.5.1')"
     echo "  --vllm-ref <ref>          : vLLM commit SHA, branch or tag (default: 'main')"
-    echo "  -h, --copy-to-host <host> : Host address to copy the image to (if not set, don't copy)"
+    echo "  -c, --copy-to <hosts>     : Host(s) to copy the image to. Accepts comma or space-delimited lists after the flag."
+    echo "      --copy-to-host        : Alias for --copy-to (backwards compatibility)."
     echo "  -u, --user <user>         : Username for ssh command (default: \$USER)"
-    echo "  --no-build                : Skip building, only copy image (requires --copy-to-host)"
-    echo "  --help                    : Show this help message"
+    echo "  --no-build                : Skip building, only copy image (requires --copy-to)"
+    echo "  -h, --help                : Show this help message"
     exit 1
 }
 
@@ -37,18 +60,34 @@ while [[ "$#" -gt 0 ]]; do
         --rebuild-vllm) REBUILD_VLLM=true ;;
         --triton-ref) TRITON_REF="$2"; shift ;;
         --vllm-ref) VLLM_REF="$2"; shift ;;
-        -h|--copy-to-host) COPY_HOST="$2"; shift ;;
+        -c|--copy-to|--copy-to-host|--copy-to-hosts)
+            shift
+            if [ "$#" -eq 0 ]; then
+                echo "Error: --copy-to requires at least one host"
+                exit 1
+            fi
+            EXISTING_HOSTS=${#COPY_HOSTS[@]}
+            while [[ "$#" -gt 0 && "$1" != -* ]]; do
+                add_copy_hosts "$1"
+                shift
+            done
+            if [ "${#COPY_HOSTS[@]}" -eq "$EXISTING_HOSTS" ]; then
+                echo "Error: --copy-to requires at least one host"
+                exit 1
+            fi
+            continue
+            ;;
         -u|--user) SSH_USER="$2"; shift ;;
         --no-build) NO_BUILD=true ;;
-        --help) usage ;;
+        -h|--help) usage ;;
         *) echo "Unknown parameter passed: $1"; usage ;;
     esac
     shift
 done
 
 # Validate --no-build usage
-if [ "$NO_BUILD" = true ] && [ -z "$COPY_HOST" ]; then
-    echo "Error: --no-build requires --copy-to-host to be specified"
+if [ "$NO_BUILD" = true ] && [ "${#COPY_HOSTS[@]}" -eq 0 ]; then
+    echo "Error: --no-build requires --copy-to to be specified"
     exit 1
 fi
 
@@ -89,11 +128,23 @@ fi
 
 # Copy to host if requested
 COPY_TIME=0
-if [ -n "$COPY_HOST" ]; then
-    echo "Copying image '$IMAGE_TAG' to ${SSH_USER}@${COPY_HOST}..."
+if [ "${#COPY_HOSTS[@]}" -gt 0 ]; then
+    echo "Copying image '$IMAGE_TAG' to ${#COPY_HOSTS[@]} host(s): ${COPY_HOSTS[*]}"
     COPY_START=$(date +%s)
-    # Using the pipe method from README.md
-    docker save "$IMAGE_TAG" | ssh "${SSH_USER}@${COPY_HOST}" "docker load"
+
+    TMP_IMAGE=$(mktemp -t vllm_image.XXXXXX)
+    echo "Saving image locally to $TMP_IMAGE..."
+    docker save -o "$TMP_IMAGE" "$IMAGE_TAG"
+
+    for host in "${COPY_HOSTS[@]}"; do
+        echo "Loading image into ${SSH_USER}@${host}..."
+        HOST_COPY_START=$(date +%s)
+        cat "$TMP_IMAGE" | ssh "${SSH_USER}@${host}" "docker load"
+        HOST_COPY_END=$(date +%s)
+        HOST_COPY_TIME=$((HOST_COPY_END - HOST_COPY_START))
+        printf "Copy to %s completed in %02d:%02d:%02d\n" "$host" $((HOST_COPY_TIME/3600)) $((HOST_COPY_TIME%3600/60)) $((HOST_COPY_TIME%60))
+    done
+
     COPY_END=$(date +%s)
     COPY_TIME=$((COPY_END - COPY_START))
     echo "Copy complete."
