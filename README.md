@@ -30,7 +30,7 @@ The Dockerfile builds from the main branch of VLLM, so depending on when you run
 - Added `--pre-flashinfer` flag to `build-and-copy.sh` to use pre-release versions of FlashInfer.
 - Added `--use-wheels [mode]` flag to `build-and-copy.sh`.
   - Allows building the container using pre-built vLLM wheels instead of compiling from source.
-  - The resulting Docker container size is reduced considerably (14GB vs 24GB)
+  - Reduced build time and container size.
   - `mode` is optional and defaults to `nightly`.
   - Supported modes: `nightly` (release wheels are broken with CUDA 13 currently).
 ### 2025-12-19
