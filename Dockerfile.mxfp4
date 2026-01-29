@@ -98,8 +98,8 @@ ARG CUTLASS_REPO=https://github.com/christopherowen/cutlass.git
 ARG FLASHINFER_SHA=f349e52496a72a00d8c4ac02c7a1e38523ff7194
 ARG CUTLASS_SHA=11af7f02ab52c9130e422eeb4b44042fbd60c083
 
-# RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-#     uv pip install "apache-tvm-ffi<0.2" nvidia-ml-py requests wheel
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+     uv pip install nvidia-nvshmem-cu13
 
 # Clone FlashInfer (cached for faster rebuilds)
 RUN --mount=type=cache,id=git-flashinfer,target=/git-cache/flashinfer \
@@ -147,15 +147,15 @@ RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     uv pip install --no-build-isolation . -v
 
 # flashinfer-cubin
-# RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-#     --mount=type=cache,id=ccache,target=/root/.ccache \
-#     cd flashinfer-cubin && uv pip install --no-build-isolation . -v
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    --mount=type=cache,id=ccache,target=/root/.ccache \
+    cd flashinfer-cubin && uv pip install --no-build-isolation . -v
 
-# # flashinfer-jit-cache
-# RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
-#     --mount=type=cache,id=ccache,target=/root/.ccache \
-#     cd flashinfer-jit-cache && \
-#     uv pip install --no-build-isolation . -v
+# flashinfer-jit-cache
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    --mount=type=cache,id=ccache,target=/root/.ccache \
+    cd flashinfer-jit-cache && \
+    uv pip install --no-build-isolation . -v
 
 # --- VLLM SOURCE CACHE BUSTER ---
 # Change THIS argument to force a fresh git clone and rebuild of vLLM
