@@ -58,9 +58,7 @@ WORKDIR $VLLM_BASE_DIR
 ENV TORCH_CUDA_ARCH_LIST=12.1a
 ENV TRITON_PTXAS_PATH=/usr/local/cuda/bin/ptxas
 
-# --- CACHE BUSTER ---
-# Change this argument to force a re-download of FlashInfer
-ARG CACHEBUST_DEPS=1
+
 
 # 3. Install Python Dependencies with Cache Mounts
 # Using --mount=type=cache ensures that even if this layer invalidates, 
@@ -108,6 +106,10 @@ FROM base AS builder
 ENV FLASHINFER_CUDA_ARCH_LIST="12.1f"
 WORKDIR $VLLM_BASE_DIR
 ARG FLASHINFER_REF=main
+
+# --- CACHE BUSTER ---
+# Change this argument to force a re-download of FlashInfer
+ARG CACHEBUST_DEPS=1
 
 RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
      uv pip install nvidia-nvshmem-cu13 "apache-tvm-ffi<0.2"
