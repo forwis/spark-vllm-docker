@@ -95,6 +95,11 @@ ENV TIKTOKEN_ENCODINGS_BASE=$VLLM_BASE_DIR/tiktoken_encodings
 COPY run-cluster-node.sh $VLLM_BASE_DIR/
 RUN chmod +x $VLLM_BASE_DIR/run-cluster-node.sh
 
+# Cleanup
+
+# Remove triton-kernels as they are not compatible with this vLLM version yet
+RUN uv pip uninstall triton-kernels
+
 # Cleanup unneeded packages to reduce image size
 # RUN uv pip uninstall absl-py apex argon2-cffi \
 #     argon2-cffi-bindings arrow asttokens astunparse async-lru audioread babel beautifulsoup4 \
