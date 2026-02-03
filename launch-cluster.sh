@@ -403,14 +403,15 @@ apply_mod_to_container() {
     # 3. Run run.sh
     echo "  Running patch script on $node_ip..."
 
-    local exec_cmd="cd $container_dest && chmod +x run.sh && ./run.sh"
+    local local_exec_cmd="export WORKSPACE_DIR=\$PWD && cd $container_dest && chmod +x run.sh && ./run.sh"
+    local remote_exec_cmd="export WORKSPACE_DIR=\\\$PWD && cd $container_dest && chmod +x run.sh && ./run.sh"
     local ret_code=0
 
     if [[ "$is_local" == "true" ]]; then
-        docker exec "$container" bash -c "$exec_cmd"
+        docker exec "$container" bash -c "$local_exec_cmd"
         ret_code=$?
     else
-        $cmd_prefix docker exec "$container" bash -c "\"$exec_cmd\""
+        $cmd_prefix docker exec "$container" bash -c "\"$remote_exec_cmd\""
         ret_code=$?
     fi
 

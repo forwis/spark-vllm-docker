@@ -77,6 +77,19 @@ Then run the following command that will build and distribute image across the c
 
 **On a single node**:
 
+**NEW** - `launch-cluster.sh` now supports solo mode, which is now a recommended way to run the container on a single Spark:
+
+```bash
+./launch-cluster.sh --solo exec \
+  vllm serve \
+    QuantTrio/Qwen3-VL-30B-A3B-Instruct-AWQ \
+    --port 8000 --host 0.0.0.0 \
+    --gpu-memory-utilization 0.7 \
+    --load-format fastsafetensors
+```
+
+**To launch using regular `docker run`**
+
 ```bash
  docker run \
   --privileged \
@@ -146,6 +159,8 @@ For periodic maintenance, I recommend using a filter: `docker builder prune --fi
 
 ### 2026-02-02
 
+#### Nemotron Nano mod
+
 Added a mod for nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B support. It supports all Nemotron Nano models/quants using the same reasoning parser.
 To use, add `--apply-mod mods/nemotron-nano` to `./launch-cluster.sh` arguments.
 
@@ -171,6 +186,38 @@ For example, to run nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4 on a single node
 ```
 
 Please note, that NVFP4 models on Spark are not fully supported on vLLM (any build) yet, so the performance will not be optimal. You will likely see Flashinfer errors during load. This model is also known to crash sometimes.
+
+#### Ability to use launch-cluster.sh with NVIDIA NGC containers
+
+Added a new mod that enables using cluster launch script with NVIDIA NGC vLLM or any other vLLM container that includes Infiniband libraries and Ray support.
+
+To use, add `--apply-mod mods/use-ngc-vllm` to `./launch-cluster.sh` arguments. It can be combined with other mods.
+For example, to launch Nemotron Nano in the cluster using NGC container, you can use the following command:
+
+```bash
+./launch-cluster.sh \
+   -t nvcr.io/nvidia/vllm:26.01-py3 \
+   --apply-mod mods/use-ngc-vllm \
+   --apply-mod mods/nemotron-nano \
+   -e VLLM_USE_FLASHINFER_MOE_FP4=1 \
+   -e VLLM_FLASHINFER_MOE_BACKEND=throughput \
+   exec vllm serve nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-NVFP4 \
+       --max-model-len 262144 \
+       --port 8888 --host 0.0.0.0 \
+       --trust-remote-code \
+       --enable-auto-tool-choice \
+       --tool-call-parser qwen3_coder \
+       --reasoning-parser-plugin nano_v3_reasoning_parser.py \
+       --reasoning-parser nano_v3 \
+       --kv-cache-dtype fp8 \
+       --gpu-memory-utilization 0.7 \
+       --tensor-parallel-size 2 \
+       --distributed-executor-backend ray
+```
+
+Make sure you have the container pulled on both nodes!
+
+At this point it doesn't seem like NGC container performs any better for this model than a custom build.
 
 ### 2026-01-29
 
