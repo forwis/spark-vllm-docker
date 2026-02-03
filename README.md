@@ -77,6 +77,19 @@ Then run the following command that will build and distribute image across the c
 
 **On a single node**:
 
+**NEW** - `launch-cluster.sh` now supports solo mode, which is now a recommended way to run the container on a single Spark:
+
+```bash
+./launch-cluster.sh --solo exec \
+  vllm serve \
+    QuantTrio/Qwen3-VL-30B-A3B-Instruct-AWQ \
+    --port 8000 --host 0.0.0.0 \
+    --gpu-memory-utilization 0.7 \
+    --load-format fastsafetensors
+```
+
+**To launch using regular `docker run`**
+
 ```bash
  docker run \
   --privileged \
