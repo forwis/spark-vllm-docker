@@ -68,6 +68,7 @@ RECIPE YAML SCHEMA:
     env: dict              # Optional: Environment variables
     build_args: list[str]  # Optional: Args for build-and-copy.sh
     cluster_only: bool     # Optional: Require cluster mode (default: false)
+    solo_only: bool        # Optional: Require solo mode (default: false)
 
 RECIPE VERSION HISTORY:
     Version 1 (default): Initial schema with all fields above supported.
@@ -132,6 +133,7 @@ def load_recipe(recipe_path: Path) -> dict[str, Any]:
         env (dict, optional): Environment variables to export before running
         build_args (list[str], optional): Extra args for build-and-copy.sh (e.g., ['-f', 'Dockerfile.mxfp4'])
         cluster_only (bool, optional): If True, recipe cannot run in solo mode
+        solo_only (bool, optional): If True, recipe cannot run in cluster mode
     
     Args:
         recipe_path: Path object pointing to YAML file or just recipe name
@@ -175,6 +177,8 @@ def load_recipe(recipe_path: Path) -> dict[str, Any]:
     recipe.setdefault("mods", [])
     recipe.setdefault("defaults", {})
     recipe.setdefault("env", {})
+    recipe.setdefault("cluster_only", False)
+    recipe.setdefault("solo_only", False)
     
     # Validate recipe version compatibility
     # EXTENSIBILITY: When adding new schema versions, update SUPPORTED_VERSIONS
@@ -221,6 +225,7 @@ def list_recipes() -> None:
             model = recipe.get("model", "")
             mods = recipe.get("mods", [])
             cluster_only = recipe.get("cluster_only", False)
+            solo_only = recipe.get("solo_only", False)
             
             print(f"  {recipe_path.name}")
             print(f"    Name: {name}")
@@ -229,7 +234,9 @@ def list_recipes() -> None:
             if model:
                 print(f"    Model: {model}")
             if cluster_only:
-                print(f"    Cluster only: Yes")
+                print("    Cluster only: Yes")
+            if solo_only:
+                print("    Solo only: Yes")
             print(f"    Container: {container}")
             if build_args:
                 print(f"    Build args: {' '.join(build_args)}")
@@ -921,6 +928,7 @@ Examples:
     
     # Check if recipe requires cluster mode
     cluster_only = recipe.get("cluster_only", False)
+    solo_only = recipe.get("solo_only", False)
     is_solo = args.solo or not is_cluster
     
     if cluster_only and is_solo:
@@ -931,6 +939,14 @@ Examples:
         print(f"  1. Specify nodes directly:  {sys.argv[0]} {args.recipe} -n node1,node2")
         print(f"  2. Auto-discover and save:  {sys.argv[0]} --discover")
         print(f"     Then run:                {sys.argv[0]} {args.recipe}")
+        return 1
+    if solo_only and not is_solo:
+        print(f"Error: Recipe '{recipe['name']}' requires solo mode.")
+        print("This recipe is intended to run on a single node only.")
+        print()
+        print("Options:")
+        print(f"  1. Run solo:                {sys.argv[0]} {args.recipe} --solo")
+        print(f"  2. Remove nodes from .env:  {sys.argv[0]} --show-env")
         return 1
     
     # Determine copy targets for cluster deployments
@@ -944,7 +960,9 @@ Examples:
         if model:
             print(f"Model: {model}")
         if cluster_only:
-            print(f"Cluster only: Yes (model too large for single node)")
+            print("Cluster only: Yes (model too large for single node)")
+        if solo_only:
+            print("Solo only: Yes (single node only)")
         if nodes:
             source = "(from .env)" if nodes_from_env else ""
             print(f"Nodes: {', '.join(nodes)} {source}".strip())
