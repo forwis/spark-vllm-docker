@@ -164,7 +164,7 @@ Don't do it every time you rebuild, because it will slow down compilation times.
 
 For periodic maintenance, I recommend using a filter: `docker builder prune --filter until=72h`
 
-### 2026-02-14
+### 2026-02-17
 
 #### Non-Privileged Mode Support
 
@@ -180,6 +180,8 @@ Example usage:
 ./launch-cluster.sh --non-privileged exec vllm serve ...
 ./launch-cluster.sh --non-privileged --mem-limit-gb 120 --shm-size-gb 64 exec vllm serve ...
 ```
+
+May result in a slightly reduced performance (within 2%) in exchange for better reliability and stability.
 
 ### 2026-02-12
 
