@@ -6,7 +6,7 @@ ARG BUILD_JOBS=16
 # =========================================================
 # STAGE 1: Base Image (Installs Dependencies)
 # =========================================================
-FROM nvcr.io/nvidia/pytorch:26.01-py3 AS base
+FROM nvcr.io/nvidia/pytorch:26.02-py3 AS base
 
 # Build parallemism
 ARG BUILD_JOBS
@@ -207,7 +207,7 @@ COPY --from=vllm-builder /workspace/wheels /
 # =========================================================
 # STAGE 6: Runner (Installs wheels from host ./wheels/)
 # =========================================================
-FROM nvcr.io/nvidia/pytorch:26.01-py3 AS runner
+FROM nvcr.io/nvidia/pytorch:26.02-py3 AS runner
 
 # Transferring build settings from build image because of ptxas/jit compilation during vLLM startup
 # Build parallemism

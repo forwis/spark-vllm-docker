@@ -333,7 +333,7 @@ For example, to launch Nemotron Nano in the cluster using NGC container, you can
 
 ```bash
 ./launch-cluster.sh \
-   -t nvcr.io/nvidia/vllm:26.01-py3 \
+   -t nvcr.io/nvidia/vllm:26.02-py3 \
    --apply-mod mods/use-ngc-vllm \
    --apply-mod mods/nemotron-nano \
    -e VLLM_USE_FLASHINFER_MOE_FP4=1 \
