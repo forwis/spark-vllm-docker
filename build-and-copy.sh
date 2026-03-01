@@ -161,7 +161,7 @@ usage() {
     echo "      --copy-parallel           : Copy to all hosts in parallel instead of serially."
     echo "  -j, --build-jobs <jobs>       : Number of concurrent build jobs (default: ${BUILD_JOBS})"
     echo "  -u, --user <user>             : Username for ssh command (default: \$USER)"
-    echo "  --tf5                         : Install transformers>=5 (aliases: --pre-tf, --pre-transformers)"
+    echo "  --tf5                         : Install latest transformers from git@main (aliases: --pre-tf, --pre-transformers)"
     echo "  --exp-mxfp4, --experimental-mxfp4 : Build with experimental native MXFP4 support"
     echo "  --apply-vllm-pr <pr-num>      : Apply a specific PR patch to vLLM source. Can be specified multiple times."
     echo "  --full-log                    : Enable full build logging (--progress=plain)"
@@ -410,7 +410,7 @@ if [ "$NO_BUILD" = false ]; then
             "${COMMON_BUILD_FLAGS[@]}")
 
         if [ "$PRE_TRANSFORMERS" = true ]; then
-            echo "Using transformers>=5.0.0..."
+            echo "Using latest transformers from git@main..."
             RUNNER_CMD+=("--build-arg" "PRE_TRANSFORMERS=1")
         fi
 

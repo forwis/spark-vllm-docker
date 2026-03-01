@@ -368,7 +368,7 @@ At this point it doesn't seem like NGC container performs any better for this mo
 Added a mod to prevent severe inference speed degradation when using cyankiwi/GLM-4.7-Flash-AWQ-4bit (and potentially other AWQ quants of this model).
 See (this post on NVIDIA forums)[https://forums.developer.nvidia.com/t/make-glm-4-7-flash-go-brrrrr/359111] for implementation details.
 
-To use the mod, first build the container with Transformers 5 support (`--pre-tf`) flag, e.g.:
+To use the mod, first build the container with latest Transformers support from git (`--pre-tf`) flag, e.g.:
 
 ```bash
 ./build-and-copy.sh -t vllm-node-tf5 --pre-tf -c

@@ -247,11 +247,11 @@ RUN mkdir -p tiktoken_encodings && \
 ARG PRE_TRANSFORMERS=0
 
 # Install wheels from host ./wheels/ (bind-mounted from build context — no layer bloat)
-# With --tf5: override vLLM's transformers<5 constraint to get transformers>=5
+# With --tf5: override vLLM's transformers<5 constraint to get transformers from git@main
 RUN --mount=type=bind,source=wheels,target=/workspace/wheels \
     --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     if [ "$PRE_TRANSFORMERS" = "1" ]; then \
-        echo "transformers>=5.0.0" > /tmp/tf-override.txt && \
+        echo "transformers[serving] @ git+https://github.com/huggingface/transformers.git@main" > /tmp/tf-override.txt && \
         uv pip install /workspace/wheels/*.whl --override /tmp/tf-override.txt; \
     else \
         uv pip install /workspace/wheels/*.whl; \
