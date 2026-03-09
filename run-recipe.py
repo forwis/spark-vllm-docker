@@ -86,6 +86,7 @@ RELATED FILES:
 import argparse
 import os
 import subprocess
+import shlex
 import sys
 import tempfile
 from pathlib import Path
@@ -473,7 +474,7 @@ def generate_launch_script(recipe: dict[str, Any], overrides: dict[str, Any], is
     # Append extra args if provided (after --)
     if extra_args:
         # Join extra args and append to command
-        extra_args_str = ' '.join(extra_args)
+        extra_args_str = ' '.join(shlex.quote(a) for a in extra_args)
         command = command.rstrip()
         # Handle multi-line commands with backslash continuations
         if command.endswith('\\'):

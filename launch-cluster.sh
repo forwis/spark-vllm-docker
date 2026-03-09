@@ -115,7 +115,7 @@ while [[ "$#" -gt 0 ]]; do
             fi
             ACTION="exec"
             shift
-            COMMAND_TO_RUN="$@"
+            COMMAND_TO_RUN=$(printf "%q " "$@")
             break
             ;;
         *) 
