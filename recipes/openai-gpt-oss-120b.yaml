@@ -23,7 +23,7 @@ mods: []
 
 # Default settings (can be overridden via CLI)
 defaults:
-  port: 8000
+  port: 54351
   host: 0.0.0.0
   tensor_parallel: 1
   gpu_memory_utilization: 0.70
@@ -31,6 +31,8 @@ defaults:
 
 # Environment variables to set in the container
 env:
+  HF_HOME: ${HF_HOME}
+  HF_TOKEN: ${HF_TOKEN}
   VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8: "1"
 
 # The vLLM serve command template
