@@ -27,7 +27,7 @@ mods:
 
 # Default settings (can be overridden via CLI)
 defaults:
-  port: 8000
+  port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 112
@@ -35,7 +35,9 @@ defaults:
   max_num_batched_tokens: 4176
 
 # Environment variables
-env: 
+env:
+  HF_HOME: ${HF_HOME}
+  HF_TOKEN: ${HF_TOKEN}
   PYTORCH_CUDA_ALLOC_CONF: "expandable_segments:True" 
   VLLM_MARLIN_USE_ATOMIC_ADD: 1
 
