@@ -21,7 +21,7 @@ cluster_only: false
 solo_only: false
 
 # Container image to use
-container: vllm-node
+container: vllm-node-tf5
 
 # Build arguments for build-and-copy.sh
 # tf5 = transformers 5.0 (required for GLM-4.7)
@@ -49,7 +49,6 @@ env:
   # Pass HF_HOME and HF_TOKEN from host to container if set
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
-  TZ: Asia/Seoul
 
 # The vLLM serve command template
 # Use {var_name} for substitution from defaults/overrides
