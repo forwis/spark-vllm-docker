@@ -28,6 +28,7 @@ VLLM_RELEASE_TAG="prebuilt-vllm-current"
 # Space-separated list of GPU architectures for which prebuilt wheels are available
 PREBUILT_WHEELS_SUPPORTED_ARCHS="12.1a"
 CLEANUP_MODE="false"
+CONFIG_FILE=""
 
 cleanup() {
     if [ -n "$TMP_IMAGE" ] && [ -f "$TMP_IMAGE" ]; then
@@ -280,11 +281,32 @@ usage() {
     echo "  --no-build                    : Skip building, only copy image (requires --copy-to)"
     echo "  --network <network>           : Docker network to use during build"
     echo "  --cleanup                     : Remove all *.whl and *.-commit files in wheels directory"
+    echo "  --config                      : Path to .env configuration file (default: .env in script directory)"
     echo "  -h, --help                    : Show this help message"
     exit 1
 }
 
-# Argument parsing
+# Set default CONFIG_FILE
+SCRIPT_DIR="$(dirname "$(realpath "$0")")"
+export CONFIG_FILE="$SCRIPT_DIR/.env"
+
+# Parse --config argument first
+i=1
+while [[ $i -le $# ]]; do
+    arg="${!i}"
+    if [[ "$arg" == "--config" ]]; then
+        next_i=$((i+1))
+        CONFIG_FILE="${!next_i}"
+        export CONFIG_FILE
+        break
+    fi
+    i=$((i+1))
+done
+
+# Source autodiscover.sh to load .env file
+source "$(dirname "$0")/autodiscover.sh"
+
+# Now parse all arguments normally
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -t|--tag) IMAGE_TAG="$2"; shift ;;
@@ -300,24 +322,31 @@ while [[ "$#" -gt 0 ]]; do
             done
 
             if [ "${#COPY_HOSTS[@]}" -eq 0 ]; then
-                echo "No hosts specified. Using autodiscovery..."
-                source "$(dirname "$0")/autodiscover.sh"
+                # Try to use COPY_HOSTS from .env first
+                if [[ -n "$DOTENV_COPY_HOSTS" ]]; then
+                    echo "Using COPY_HOSTS from .env: $DOTENV_COPY_HOSTS"
+                    IFS=',' read -ra HOSTS_FROM_ENV <<< "$DOTENV_COPY_HOSTS"
+                    COPY_HOSTS=("${HOSTS_FROM_ENV[@]}")
+                else
+                    echo "No hosts specified. Using autodiscovery..."
+                    source "$(dirname "$0")/autodiscover.sh"
 
-                detect_nodes
-                if [ $? -ne 0 ]; then
-                    echo "Error: Autodiscovery failed."
-                    exit 1
-                fi
+                    detect_nodes
+                    if [ $? -ne 0 ]; then
+                        echo "Error: Autodiscovery failed."
+                        exit 1
+                    fi
 
-                if [ ${#PEER_NODES[@]} -gt 0 ]; then
-                    COPY_HOSTS=("${PEER_NODES[@]}")
-                fi
+                    if [ ${#PEER_NODES[@]} -gt 0 ]; then
+                        COPY_HOSTS=("${PEER_NODES[@]}")
+                    fi
 
-                if [ "${#COPY_HOSTS[@]}" -eq 0 ]; then
-                     echo "Error: Autodiscovery found no other nodes."
-                     exit 1
+                    if [ "${#COPY_HOSTS[@]}" -eq 0 ]; then
+                         echo "Error: Autodiscovery found no other nodes."
+                         exit 1
+                    fi
+                    echo "Autodiscovered hosts: ${COPY_HOSTS[*]}"
                 fi
-                echo "Autodiscovered hosts: ${COPY_HOSTS[*]}"
             fi
             continue
             ;;
@@ -351,11 +380,16 @@ while [[ "$#" -gt 0 ]]; do
                 exit 1
             fi
             ;;
+        --config) CONFIG_FILE="$2"; shift ;;
         -h|--help) usage ;;
         *) echo "Unknown parameter passed: $1"; usage ;;
     esac
     shift
 done
+
+# Set CONFIG_FILE and source autodiscover.sh to load .env
+export CONFIG_FILE
+source "$(dirname "$0")/autodiscover.sh"
 
 # Validate flag combinations
 if [ -n "$VLLM_PRS" ]; then
