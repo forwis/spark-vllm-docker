@@ -91,6 +91,10 @@ ARG FLASHINFER_REF=main
 # Change this argument to force a re-download of FlashInfer
 ARG CACHEBUST_FLASHINFER=1
 
+# Additional deps
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+     uv pip install packaging
+
 # Smart Git Clone (Fetch changes instead of full re-clone)
 RUN --mount=type=cache,id=repo-cache,target=/repo-cache \
     cd /repo-cache && \
