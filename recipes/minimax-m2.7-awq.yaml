@@ -45,6 +45,7 @@ command: |
       --enable-prefix-caching \
       --enable-chunked-prefill \
       --enable-auto-tool-choice \
+      --kv-cache-dtype fp8 \
       --tool-call-parser minimax_m2 \
       --reasoning-parser minimax_m2_append_think \
       --attention-backend flashinfer \
