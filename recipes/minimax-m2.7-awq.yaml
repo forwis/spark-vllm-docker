@@ -33,15 +33,25 @@ env:
 # The vLLM serve command template
 command: |
   vllm serve cyankiwi/MiniMax-M2.7-AWQ-4bit \
+      --served-model-name MiniMax-M2.7 \
       --trust-remote-code \
       --port {port} \
       --host {host} \
       --gpu-memory-utilization {gpu_memory_utilization} \
       -tp {tensor_parallel} \
-      --distributed-executor-backend ray \
       --max-model-len {max_model_len} \
-      --load-format fastsafetensors \
+      --max-num-seqs 4 \
+      --max-num-batched-tokens 8192 \
+      --enable-prefix-caching \
+      --enable-chunked-prefill \
       --enable-auto-tool-choice \
-      --kv-cache-dtype fp8 \
       --tool-call-parser minimax_m2 \
-      --reasoning-parser minimax_m2_append_think
+      --reasoning-parser minimax_m2_append_think \
+      --attention-backend flashinfer \
+      --override-generation-config "{\"top_k\": 40, \"top_p\": 0.95, \"temperature\": 1.0, \"min_p\": 0.01}" \
+      --dtype auto \
+      --kv-cache-dtype fp8 \
+      --disable-custom-all-reduce \
+      --trust-remote-code \
+      --load-format fastsafetensors \
+      --distributed-executor-backend ray
