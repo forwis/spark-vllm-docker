@@ -6,7 +6,7 @@ name: MiniMax-M2.5-AWQ
 description: vLLM serving MiniMax-M2.5-AWQ with Ray distributed backend
 
 # HuggingFace model to download (optional, for --download-model)
-model: cyankiwi/MiniMax-M2.5-AWQ-4bit
+model: cyankiwi/MiniMax-M2.7-AWQ-4bit
 
 # Container image to use
 container: vllm-node
@@ -22,8 +22,8 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.7
-  max_model_len: 128000
+  gpu_memory_utilization: 0.8
+  max_model_len: 204800
 
 # Environment variables
 env:
