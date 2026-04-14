@@ -6,7 +6,7 @@ name: MiniMax-M2.5-AWQ
 description: vLLM serving MiniMax-M2.5-AWQ with Ray distributed backend
 
 # HuggingFace model to download (optional, for --download-model)
-model: cyankiwi/MiniMax-M2.7-AWQ-4bit
+model: olka-fi/MiniMax-M2.7-MXFP4
 
 # Container image to use
 container: vllm-node
@@ -32,7 +32,7 @@ env:
 
 # The vLLM serve command template
 command: |
-  vllm serve cyankiwi/MiniMax-M2.7-AWQ-4bit \
+  vllm serve olka-fi/MiniMax-M2.7-MXFP4 \
       --trust-remote-code \
       --port {port} \
       --host {host} \
