@@ -31,9 +31,6 @@ defaults:
 env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
-  VLLM_NVFP4_GEMM_BACKEND: "marlin"
-  VLLM_TEST_FORCE_FP8_MARLIN: "1"
-  VLLM_MARLIN_USE_ATOMIC_ADD: "1"
 
 # The vLLM serve command template
 command: |

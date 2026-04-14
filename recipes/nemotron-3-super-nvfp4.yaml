@@ -24,11 +24,10 @@ defaults:
   gpu_memory_utilization: 0.7
   max_model_len: 262144
   max_num_seqs: 10
+
 env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
-  VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
-  VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
 
 command: |
   vllm serve nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 \
@@ -44,8 +43,8 @@ command: |
   --enable-auto-tool-choice \
   --load-format fastsafetensors \
   --tool-call-parser qwen3_coder \
-  --reasoning-parser-plugin super_v3_reasoning_parser.py \
-  --reasoning-parser super_v3 \
+  --reasoning-parser nemotron_v3 \
+  --mamba_ssm_cache_dtype float32 \
   --tensor-parallel-size {tensor_parallel} \
   --attention-backend TRITON_ATTN \
   --distributed-executor-backend ray
