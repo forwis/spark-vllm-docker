@@ -48,7 +48,6 @@ command: |
       --tool-call-parser minimax_m2 \
       --reasoning-parser minimax_m2_append_think \
       --attention-backend flashinfer \
-      --override-generation-config "{\"top_k\": 40, \"top_p\": 0.95, \"temperature\": 1.0, \"min_p\": 0.01}" \
       --dtype auto \
       --kv-cache-dtype fp8 \
       --disable-custom-all-reduce \
