@@ -57,7 +57,6 @@ command: |
     --max-num-batched-tokens {max_num_batched_tokens} \
     --trust-remote-code \
     --chat-template unsloth.jinja \
-    --load-format instanttensor \
     -tp {tensor_parallel} \
     --distributed-executor-backend ray
 
