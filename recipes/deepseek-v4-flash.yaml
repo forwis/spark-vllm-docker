@@ -1,0 +1,56 @@
+# Recipe: DeepSeek-V4-Flash
+# DeepSeek-V4-Flash model
+
+recipe_version: "1"
+name: DeepSeek-V4-Flash
+description: vLLM serving DeepSeek-V4-Flash with Ray distributed backend
+
+# HuggingFace model to download (optional, for --download-model)
+model: deepseek-ai/DeepSeek-V4-Flash
+
+# Container image to use
+container: vllm-node
+
+# Can only be run in a cluster
+cluster_only: true
+
+# No mods required
+mods: []
+
+# Default settings (can be overridden via CLI)
+defaults:
+  port: 54351
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.8
+  max_model_len: 262144
+
+# Environment variables
+env:
+  HF_HOME: ${HF_HOME}
+  HF_TOKEN: ${HF_TOKEN}
+  HEAD_IP: 192.168.200.12
+
+# The vLLM serve command template
+command: |
+  vllm serve deepseek-ai/DeepSeek-V4-Flash \
+      --served-model-name deepSeek-v4-flash \
+      --trust-remote-code \
+      --port {port} \
+      --host {host} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --distributed-executor-backend ray \
+      --max-model-len {max_model_len} \
+      --trust-remote-code \
+      --kv-cache-dtype fp8 \
+      --block-size 256 \
+      --enable-expert-parallel \
+      --data-parallel-hybrid-lb \
+      --data-parallel-size 2 \
+      --data-parallel-size-local 1 \
+      --data-parallel-address '$HEAD_IP' \
+      --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE", "custom_ops":["all"]}' \
+      --tokenizer-mode deepseek_v4 \
+      --tool-call-parser deepseek_v4 \
+      --enable-auto-tool-choice \
+      --reasoning-parser deepseek_v4
