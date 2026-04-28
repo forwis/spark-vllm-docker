@@ -54,6 +54,6 @@ command: |
       --tokenizer-mode deepseek_v4 \
       --tool-call-parser deepseek_v4 \
       --enable-auto-tool-choice \
-      --reasoning-parser deepseek_v4
+      --reasoning-parser deepseek_v4 \
       --generation-config auto \
       --override-generation-config '{"temperature": 1.0, "top_p": 1.0}'
