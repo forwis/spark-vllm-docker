@@ -9,7 +9,7 @@ description: vLLM serving DeepSeek-V4-Flash with Ray distributed backend
 model: deepseek-ai/DeepSeek-V4-Flash
 
 # Container image to use
-container: vllm-node
+container: vllm-node-tf5
 
 # Can only be run in a cluster
 cluster_only: true
@@ -22,8 +22,8 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.8
-  max_model_len: 262144
+  gpu_memory_utilization: 0.90
+  max_model_len: 384000
 
 # Environment variables
 env:
@@ -40,17 +40,20 @@ command: |
       --host {host} \
       --gpu-memory-utilization {gpu_memory_utilization} \
       --distributed-executor-backend ray \
+      --tensor-parallel-size {tensor_parallel} \
       --max-model-len {max_model_len} \
-      --trust-remote-code \
+      --max-num-batched-tokens 8192 \
+      --max-num-seqs 8 \
+      --enable-prefix-caching \
+      --enable-chunked-prefill \
+      --load-format safetensors \
+      --attention-backend FLASHINFER_MLA_SPARSE \
+      --dtype auto \
       --kv-cache-dtype fp8 \
       --block-size 256 \
-      --enable-expert-parallel \
-      --data-parallel-hybrid-lb \
-      --data-parallel-size 2 \
-      --data-parallel-size-local 1 \
-      --data-parallel-address '$HEAD_IP' \
-      --compilation-config '{"cudagraph_mode":"FULL_AND_PIECEWISE", "custom_ops":["all"]}' \
       --tokenizer-mode deepseek_v4 \
       --tool-call-parser deepseek_v4 \
       --enable-auto-tool-choice \
       --reasoning-parser deepseek_v4
+      --generation-config auto \
+      --override-generation-config '{"temperature": 1.0, "top_p": 1.0}'
