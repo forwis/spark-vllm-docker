@@ -23,37 +23,43 @@ defaults:
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.90
-  max_model_len: 384000
+  max_model_len: 200000
+  max_num_batched_tokens: 4176
+  max_num_seqs: 2
+  block_size: 256
+  served_model_name: deepseek-v4-flash
+  load_format: instanttensor
+  compilation_config: '{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}'
 
 # Environment variables
 env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
   HEAD_IP: 192.168.200.12
+  VLLM_TRITON_MLA_SPARSE: 1
+  VLLM_TRITON_MLA_SPARSE_HEAD_BLOCK_SIZE: 4
 
 # The vLLM serve command template
 command: |
   vllm serve deepseek-ai/DeepSeek-V4-Flash \
-      --served-model-name deepSeek-v4-flash \
       --trust-remote-code \
-      --port {port} \
-      --host {host} \
-      --gpu-memory-utilization {gpu_memory_utilization} \
-      --distributed-executor-backend ray \
-      --tensor-parallel-size {tensor_parallel} \
-      --max-model-len {max_model_len} \
-      --max-num-batched-tokens 8192 \
-      --max-num-seqs 8 \
-      --enable-prefix-caching \
-      --enable-chunked-prefill \
-      --load-format safetensors \
-      --attention-backend FLASHINFER_MLA_SPARSE \
-      --dtype auto \
       --kv-cache-dtype fp8 \
-      --block-size 256 \
+      --block-size {block_size} \
+      --enable-prefix-caching \
       --tokenizer-mode deepseek_v4 \
       --tool-call-parser deepseek_v4 \
       --enable-auto-tool-choice \
       --reasoning-parser deepseek_v4 \
-      --generation-config auto \
+      --load-format {load_format} \
+      --compilation-config '{compilation_config}' \
+      --served-model-name {served_model_name} \
+      --max-model-len {max_model_len} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --max-num-seqs {max_num_seqs} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --host {host} \
+      --port {port} \
+      --no-disable-uvicorn-access-log \
+      -tp {tensor_parallel} \
+      --distributed-executor-backend ray \
       --override-generation-config '{{"temperature": 1.0, "top_p": 1.0}}'
