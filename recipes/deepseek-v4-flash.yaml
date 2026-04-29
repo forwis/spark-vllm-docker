@@ -36,8 +36,6 @@ env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
   HEAD_IP: 192.168.200.12
-  VLLM_TRITON_MLA_SPARSE: 1
-  VLLM_TRITON_MLA_SPARSE_HEAD_BLOCK_SIZE: 4
 
 # The vLLM serve command template
 command: |
@@ -62,4 +60,5 @@ command: |
       --no-disable-uvicorn-access-log \
       -tp {tensor_parallel} \
       --distributed-executor-backend ray \
+      --attention-backend FLASHINFER_MLA_SPARSE \
       --override-generation-config '{{"temperature": 1.0, "top_p": 1.0}}'
