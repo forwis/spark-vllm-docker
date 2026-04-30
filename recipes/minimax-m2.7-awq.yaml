@@ -33,7 +33,6 @@ env:
 # The vLLM serve command template
 command: |
   vllm serve cyankiwi/MiniMax-M2.7-AWQ-4bit \
-      --served-model-name minimax-m2.7 \
       --trust-remote-code \
       --port {port} \
       --host {host} \
