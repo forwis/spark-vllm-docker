@@ -46,6 +46,8 @@ env:
   VLLM_ENGINE_READY_TIMEOUT_S: 3600
   VLLM_RPC_TIMEOUT: 600000
   VLLM_LOG_STATS_INTERVAL: 1
+  HF_HOME: ${HF_HOME}
+  HF_TOKEN: ${HF_TOKEN}
 
 # The vLLM serve command template.
 # In --no-ray mode, run-recipe/launch-cluster strips the Ray executor flag and
