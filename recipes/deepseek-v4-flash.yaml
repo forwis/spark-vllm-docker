@@ -35,30 +35,28 @@ defaults:
 env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
-  HEAD_IP: 192.168.200.12
+
 
 # The vLLM serve command template
 command: |
   vllm serve deepseek-ai/DeepSeek-V4-Flash \
+      –served-model-name deepseek-v4-flash \
+      --port {port} \
+      --host {host} \
       --trust-remote-code \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      –-tokenizer deepseek-ai/DeepSeek-V4-Flash \
+      --tokenizer-mode deepseek_v4 \
+      --tool-call-parser deepseek_v4 \
+      --reasoning-parser deepseek_v4 \
+      --enable-auto-tool-choice \
       --kv-cache-dtype fp8 \
       --block-size {block_size} \
       --enable-prefix-caching \
-      --tokenizer-mode deepseek_v4 \
-      --tool-call-parser deepseek_v4 \
-      --enable-auto-tool-choice \
-      --reasoning-parser deepseek_v4 \
       --load-format {load_format} \
       --compilation-config '{compilation_config}' \
-      --served-model-name {served_model_name} \
       --max-model-len {max_model_len} \
       --max-num-batched-tokens {max_num_batched_tokens} \
       --max-num-seqs {max_num_seqs} \
       --gpu-memory-utilization {gpu_memory_utilization} \
-      --host {host} \
-      --port {port} \
-      --no-disable-uvicorn-access-log \
-      -tp {tensor_parallel} \
-      --distributed-executor-backend ray \
-      --attention-backend FLASHINFER_MLA_SPARSE \
-      --override-generation-config '{{"temperature": 1.0, "top_p": 1.0}}'
+      -tp {tensor_parallel}
