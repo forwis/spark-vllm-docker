@@ -42,6 +42,5 @@ command: |
       --max-model-len {max_model_len} \
       --load-format fastsafetensors \
       --enable-auto-tool-choice \
-      --kv-cache-dtype fp8 \
       --tool-call-parser minimax_m2 \
       --reasoning-parser minimax_m2
