@@ -5,7 +5,7 @@ name: Nemotron-3-Super-NVFP4-CUTLASS-Optimized
 description: vLLM serving Nemotron-3-Super-120B using CUTLASS kernels
 
 model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4
-container: vllm-node-tf5
+container: vllm-node
 cluster_only: false
 solo_only: false
 
@@ -15,10 +15,8 @@ solo_only: false
 env:
   VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
-  HF_HOME: ${HF_HOME}
-  HF_TOKEN: ${HF_TOKEN}
-  TZ: Asia/Seoul
 
+container: vllm-node
 defaults:
   port: 54351
   host: 0.0.0.0
@@ -26,6 +24,11 @@ defaults:
   gpu_memory_utilization: 0.7
   max_model_len: 262144
   max_num_seqs: 10
+
+env:
+  HF_HOME: ${HF_HOME}
+  HF_TOKEN: ${HF_TOKEN}
+  TZ: Asia/Seoul
 
 command: |
   vllm serve nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4 \
