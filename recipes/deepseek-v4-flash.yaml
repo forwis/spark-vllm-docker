@@ -48,6 +48,7 @@ env:
   VLLM_LOG_STATS_INTERVAL: 1
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
+  TZ: Asia/Seoul
 
 # The vLLM serve command template.
 # In --no-ray mode, run-recipe/launch-cluster strips the Ray executor flag and
