@@ -73,5 +73,5 @@ command: |
       --host {host} \
       --port {port} \
       --no-disable-uvicorn-access-log \
-      --distributed-executor-backend ray \
-      -tp {tensor_parallel}
+      -tp {tensor_parallel} \
+      --distributed-executor-backend ray
