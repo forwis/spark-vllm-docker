@@ -35,6 +35,7 @@ defaults:
 # Environment variables
 env: 
   VLLM_MARLIN_USE_ATOMIC_ADD: 1
+  TZ: Asia/Seoul
 
 # The vLLM serve command template
 command: |
