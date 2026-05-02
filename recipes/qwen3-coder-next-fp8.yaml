@@ -30,6 +30,7 @@ defaults:
 env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
+  TZ: Asia/Seoul
 
 # The vLLM serve command template
 command: |

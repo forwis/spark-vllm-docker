@@ -34,6 +34,7 @@ env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
   VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8: "1"
+  TZ: Asia/Seoul
 
 # The vLLM serve command template
 # Uses MXFP4 quantization for memory efficiency
