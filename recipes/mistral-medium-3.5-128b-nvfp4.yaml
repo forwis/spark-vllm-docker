@@ -26,6 +26,7 @@ defaults:
   gpu_memory_utilization: 0.88
   max_model_len: 200000
   max_num_batched_tokens: 8192
+  mm_prompt_config: '{"image":4}'
 
 # Environment variables
 env:
@@ -47,7 +48,7 @@ command: |
     --distributed-executor-backend ray \
     --max_num_seqs 4 \
     --kv-cache-dtype fp8 \
-    --limit-mm-per-prompt '{"image":4}' \
+    --limit-mm-per-prompt {mm_prompt_config} \
     --enable-auto-tool-choice \
     --tool-call-parser mistral
 
