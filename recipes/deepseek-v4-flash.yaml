@@ -9,13 +9,13 @@ description: vLLM serving deepseek-ai/DeepSeek-V4-Flash with DeepSeek V4 parser 
 # HuggingFace model to download (optional, for --download-model)
 model: deepseek-ai/DeepSeek-V4-Flash
 
-# Requires multiple Spark nodes for tensor parallelism.
-cluster_only: true
-
 # Container image to use
 container: vllm-node-tf5
 
-# Keep filesystem caches moving during the large checkpoint load.
+# Can only be run in a cluster
+cluster_only: true
+
+# No mods required
 mods:
   - mods/drop-caches
 
@@ -29,7 +29,6 @@ defaults:
   max_num_batched_tokens: 4176
   max_num_seqs: 2
   block_size: 256
-  served_model_name: deepseek-v4-flash
   load_format: instanttensor
   compilation_config: '{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}'
 
@@ -61,7 +60,6 @@ command: |
       --reasoning-parser deepseek_v4 \
       --load-format {load_format} \
       --compilation-config '{compilation_config}' \
-      --served-model-name {served_model_name} \
       --max-model-len {max_model_len} \
       --max-num-batched-tokens {max_num_batched_tokens} \
       --max-num-seqs {max_num_seqs} \
