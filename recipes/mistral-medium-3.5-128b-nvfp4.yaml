@@ -23,9 +23,9 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.8
+  gpu_memory_utilization: 0.88
   max_model_len: 200000
-  max_num_batched_tokens: 16384
+  max_num_batched_tokens: 8192
 
 # Environment variables
 env:
@@ -45,12 +45,15 @@ command: |
     --gpu-memory-utilization {gpu_memory_utilization} \
     --max-num-batched-tokens {max_num_batched_tokens} \
     --distributed-executor-backend ray \
-    --max_num_seqs 8 \
+    --max_num_seqs 4 \
     --kv-cache-dtype fp8 \
-    --tokenizer-mode mistral \
+    --limit-mm-per-prompt '{"image":4}' \
     --enable-auto-tool-choice \
-    --tool-call-parser mistral \
-    --reasoning-parser mistral
+    --tool-call-parser mistral
 
+#    --tokenizer-mode mistral \
+#    --enable-auto-tool-choice \
+#    --tool-call-parser mistral \
+#    --reasoning-parser mistral
 #    --language-model-only \
 #    --limit-mm-per-prompt '{"image":4}'
