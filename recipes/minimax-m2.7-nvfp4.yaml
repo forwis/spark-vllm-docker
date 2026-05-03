@@ -15,7 +15,8 @@ container: vllm-node-tf5
 cluster_only: true
 
 # No mods required
-mods: []
+mods:
+  - mods/drop-caches
 
 # Default settings (can be overridden via CLI)
 defaults:
