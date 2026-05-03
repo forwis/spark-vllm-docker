@@ -15,11 +15,6 @@ cluster_only: true
 # Container image to use
 container: vllm-node-tf5
 
-# vLLM PR 40991 adds DeepSeek V4 model, tokenizer, reasoning, and tool parser support.
-build_args:
-  - --apply-vllm-pr
-  - "40991"
-
 # Keep filesystem caches moving during the large checkpoint load.
 mods:
   - mods/drop-caches
