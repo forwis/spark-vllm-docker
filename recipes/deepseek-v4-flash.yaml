@@ -58,14 +58,15 @@ command: |
       --tool-call-parser deepseek_v4 \
       --enable-auto-tool-choice \
       --reasoning-parser deepseek_v4 \
-      --load-format {load_format} \
-      --compilation-config '{compilation_config}' \
       --max-model-len {max_model_len} \
       --max-num-batched-tokens {max_num_batched_tokens} \
       --max-num-seqs {max_num_seqs} \
       --gpu-memory-utilization {gpu_memory_utilization} \
       --host {host} \
       --port {port} \
-      --no-disable-uvicorn-access-log \
       -tp {tensor_parallel} \
       --distributed-executor-backend ray
+
+#--load-format {load_format} \
+#--compilation-config '{compilation_config}' \
+#--no-disable-uvicorn-access-log \
