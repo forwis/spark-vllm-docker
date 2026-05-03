@@ -50,7 +50,7 @@ command: |
     --tokenizer-mode mistral \
     --enable-auto-tool-choice \
     --tool-call-parser mistral \
-    --reasoning-parser mistral \
+    --reasoning-parser mistral
 
 #    --language-model-only \
 #    --limit-mm-per-prompt '{"image":4}'
