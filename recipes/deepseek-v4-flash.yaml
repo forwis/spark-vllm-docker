@@ -29,7 +29,7 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.70
+  gpu_memory_utilization: 0.80
   max_model_len: 200000
   max_num_batched_tokens: 4176
   max_num_seqs: 2
@@ -55,23 +55,22 @@ env:
 # launch-cluster appends per-node --nnodes/--node-rank/--master-* arguments.
 command: |
   vllm serve deepseek-ai/DeepSeek-V4-Flash \
-      --trust-remote-code \
-      --kv-cache-dtype fp8 \
+      --served-model-name deepseek-v4-flash \
+      --host {host} \
+      --port {port} \
+      --tensor-parallel-size {tensor_parallel} \
       --block-size {block_size} \
-      --enable-prefix-caching \
-      --tokenizer-mode deepseek_v4 \
-      --tool-call-parser deepseek_v4 \
-      --enable-auto-tool-choice \
-      --reasoning-parser deepseek_v4 \
       --load-format {load_format} \
       --compilation-config '{compilation_config}' \
-      --served-model-name {served_model_name} \
       --max-model-len {max_model_len} \
       --max-num-batched-tokens {max_num_batched_tokens} \
       --max-num-seqs {max_num_seqs} \
       --gpu-memory-utilization {gpu_memory_utilization} \
-      --host {host} \
-      --port {port} \
-      --no-disable-uvicorn-access-log \
-      -tp {tensor_parallel} \
+      --trust-remote-code \
+      --kv-cache-dtype fp8 \
+      --enable-prefix-caching \
+      --tokenizer-mode deepseek_v4 \
+      --tool-call-parser deepseek_v4 \
+      --enable-auto-tool-choice \
+      --reasoning-parser deepseek_v4 \    
       --distributed-executor-backend ray
