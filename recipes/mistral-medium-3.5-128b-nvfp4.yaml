@@ -36,7 +36,7 @@ env:
 # The vLLM serve command template
 # see: https://huggingface.co/mistralai/Mistral-Medium-3.5-128B-NVFP4#serve-the-model
 command: |
-  vllm serve mistralai/Mistral-Medium-3.5-128B-NVFP4 \
+  vllm serve RecViking/Mistral-Medium-3.5-128B-NVFP4 \
     --served-model-name mistral-medium-3.5-128b \
     --port {port} \
     --host {host} \
@@ -44,12 +44,13 @@ command: |
     --max-model-len {max_model_len} \
     --gpu-memory-utilization {gpu_memory_utilization} \
     --max-num-batched-tokens {max_num_batched_tokens} \
+    --distributed-executor-backend ray \
     --max_num_seqs 8 \
     --kv-cache-dtype fp8 \
     --tokenizer-mode mistral \
     --enable-auto-tool-choice \
     --tool-call-parser mistral \
-    --reasoning-parser mistral
+    --reasoning-parser mistral \
 
 #    --language-model-only \
 #    --limit-mm-per-prompt '{"image":4}'
