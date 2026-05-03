@@ -48,7 +48,6 @@ command: |
     --distributed-executor-backend ray \
     --max_num_seqs 4 \
     --kv-cache-dtype fp8 \
-    --limit-mm-per-prompt {mm_prompt_config} \
     --enable-auto-tool-choice \
     --tool-call-parser mistral
 
