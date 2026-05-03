@@ -15,8 +15,7 @@ container: vllm-node-tf5
 cluster_only: true
 
 # No mods required
-mods:
-  - mods/drop-caches
+mods: []
 
 # Default settings (can be overridden via CLI)
 defaults:
@@ -46,5 +45,4 @@ command: |
       --load-format fastsafetensors \
       --enable-auto-tool-choice \
       --tool-call-parser minimax_m2 \
-      --reasoning-parser minimax_m2 \
-      --kv-cache-dtype fp8
+      --reasoning-parser minimax_m2
