@@ -9,7 +9,7 @@ description: vLLM serving MiniMax-M2.7-AWQ with Ray distributed backend
 model: cyankiwi/MiniMax-M2.7-AWQ-4bit
 
 # Container image to use
-container: vllm-node
+container: vllm-node-tf5
 
 # Can only be run in a cluster
 cluster_only: true
@@ -34,7 +34,7 @@ env:
 # The vLLM serve command template
 command: |
   vllm serve cyankiwi/MiniMax-M2.7-AWQ-4bit \
-      --served-model-name minimax-m2.7 \
+       --served-model-name minimax-m2.7-awq \
       --trust-remote-code \
       --port {port} \
       --host {host} \
