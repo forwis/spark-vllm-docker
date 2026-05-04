@@ -4,10 +4,10 @@
 
 recipe_version: "1"
 name: DeepSeek-V4-Flash
-description: vLLM serving deepseek-ai/DeepSeek-V4-Flash with DeepSeek V4 parser support
+description: vLLM serving Intel/DeepSeek-V4-Flash-W4A16-AutoRound with DeepSeek V4 parser support
 
 # HuggingFace model to download (optional, for --download-model)
-model: deepseek-ai/DeepSeek-V4-Flash
+model: Intel/DeepSeek-V4-Flash-W4A16-AutoRound
 
 # Container image to use
 container: vllm-node-tf5
@@ -42,7 +42,7 @@ env:
 # In --no-ray mode, run-recipe/launch-cluster strips the Ray executor flag and
 # launch-cluster appends per-node --nnodes/--node-rank/--master-* arguments.
 command: |
-  vllm serve deepseek-ai/DeepSeek-V4-Flash \
+  vllm serve Intel/DeepSeek-V4-Flash-W4A16-AutoRound \
       --served-model-name deepseek-v4-flash \
       --trust-remote-code \
       --kv-cache-dtype fp8 \
@@ -62,5 +62,6 @@ command: |
       --compilation-config '{compilation_config}' \
       --distributed-executor-backend ray
 
+#--compilation-config '{compilation_config}'
 #--load-format {load_format} \
 #--no-disable-uvicorn-access-log \
