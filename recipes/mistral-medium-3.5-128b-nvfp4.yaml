@@ -6,7 +6,7 @@ name: Mistral-Medium-3.5-128B-NVFP4
 description: vLLM serving Mistral-Medium-3.5-128B-NVFP4
 
 # HuggingFace model to download (optional, for --download-model)
-model: RecViking/Mistral-Medium-3.5-128B-NVFP4
+model: zdy1995love/Mistral-Medium-3.5-128B-NVFP4
 
 cluster_only: false
 solo_only: false
@@ -24,9 +24,9 @@ defaults:
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.88
-  max_model_len: 200000
+  max_model_len: 262144
   max_num_batched_tokens: 8192
-  mm_prompt_config: '{"image":4}'
+  mm_prompt_config: '{"model": "mistralai/Mistral-Medium-3.5-128B-EAGLE", "num_speculative_tokens": 3, "method": "eagle", "max_model_len": "65536"}'
 
 # Environment variables
 env:
@@ -37,7 +37,7 @@ env:
 # The vLLM serve command template
 # see: https://huggingface.co/mistralai/Mistral-Medium-3.5-128B-NVFP4#serve-the-model
 command: |
-  vllm serve RecViking/Mistral-Medium-3.5-128B-NVFP4 \
+  vllm serve zdy1995love/Mistral-Medium-3.5-128B-NVFP4 \
     --served-model-name mistral-medium-3.5-128b \
     --port {port} \
     --host {host} \
@@ -49,8 +49,11 @@ command: |
     --max_num_seqs 4 \
     --kv-cache-dtype fp8 \
     --enable-auto-tool-choice \
-    --tool-call-parser mistral
-
+    --tool-call-parser mistral \
+    --reasoning-parser mistral \
+    --language-model-only \
+    --speculative_config {mm_prompt_config}
+  
 #    --tokenizer-mode mistral \
 #    --enable-auto-tool-choice \
 #    --tool-call-parser mistral \
