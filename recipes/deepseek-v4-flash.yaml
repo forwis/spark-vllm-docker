@@ -59,8 +59,8 @@ command: |
       --host {host} \
       --port {port} \
       -tp {tensor_parallel} \
+      --compilation-config '{compilation_config}' \
       --distributed-executor-backend ray
 
 #--load-format {load_format} \
-#--compilation-config '{compilation_config}' \
 #--no-disable-uvicorn-access-log \
