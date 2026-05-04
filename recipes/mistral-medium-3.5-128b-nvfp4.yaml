@@ -52,9 +52,8 @@ command: |
     --enable-auto-tool-choice \
     --tool-call-parser mistral \
     --reasoning-parser mistral \
-    --language-model-only
-
-#    --speculative_config {mm_prompt_config}
+    --language-model-only \
+    --speculative-config '{mm_prompt_config}'
 #    --tokenizer-mode mistral \
 #    --enable-auto-tool-choice \
 #    --tool-call-parser mistral \
