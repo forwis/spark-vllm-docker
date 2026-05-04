@@ -10,7 +10,7 @@ description: vLLM serving RedHatAI/DeepSeek-V4-Flash-NVFP4-FP8 with DeepSeek V4 
 model: RedHatAI/DeepSeek-V4-Flash-NVFP4-FP8
 
 # Container image to use
-container: vllm-node
+container: vllm-node-tf5
 
 # Can only be run in a cluster
 cluster_only: true
@@ -36,7 +36,6 @@ defaults:
 env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
-  HF_HUB_OFFLINE: 1
   TZ: Asia/Seoul
 
 # The vLLM serve command template.
@@ -61,8 +60,7 @@ command: |
       --port {port} \
       -tp {tensor_parallel} \
       --compilation-config '{compilation_config}' \
-      --distributed-executor-backend ray \
-      --no-enable-flashinfer-autotune 
+      --distributed-executor-backend ray
 
 #--compilation-config '{compilation_config}'
 #--load-format {load_format} \
