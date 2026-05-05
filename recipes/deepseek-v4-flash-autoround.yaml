@@ -60,7 +60,8 @@ command: |
       --port {port} \
       -tp {tensor_parallel} \
       --compilation-config '{compilation_config}' \
-      --distributed-executor-backend ray
+      --distributed-executor-backend ray \
+      --no-enable-flashinfer-autotune 
 
 #--compilation-config '{compilation_config}'
 #--load-format {load_format} \

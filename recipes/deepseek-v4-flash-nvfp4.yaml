@@ -36,6 +36,7 @@ defaults:
 env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
+  HF_HUB_OFFLINE: 1
   TZ: Asia/Seoul
 
 # The vLLM serve command template.
@@ -60,7 +61,8 @@ command: |
       --port {port} \
       -tp {tensor_parallel} \
       --compilation-config '{compilation_config}' \
-      --distributed-executor-backend ray
+      --distributed-executor-backend ray \
+      --no-enable-flashinfer-autotune 
 
 #--compilation-config '{compilation_config}'
 #--load-format {load_format} \

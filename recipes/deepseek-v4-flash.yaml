@@ -61,7 +61,8 @@ command: |
       --port {port} \
       -tp {tensor_parallel} \
       --compilation-config '{compilation_config}' \
-      --distributed-executor-backend ray
+      --distributed-executor-backend ray \
+      --no-enable-flashinfer-autotune 
 
 #--load-format {load_format} \
 #--no-disable-uvicorn-access-log \
