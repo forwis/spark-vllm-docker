@@ -9,15 +9,15 @@ cluster_only: true
 mods: []
 
 defaults:
-port: 54351
-host: 0.0.0.0
-tensor_parallel: 2
-gpu_memory_utilization: 0.85
-max_model_len: 1048576
+  port: 54351
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.85
+  max_model_len: 1048576
 
 env:
-TORCH_CUDA_ARCH_LIST: “12.1a”
-VLLM_ALLOW_LONG_MAX_MODEL_LEN: “1”
+  TORCH_CUDA_ARCH_LIST: “12.1a”
+  VLLM_ALLOW_LONG_MAX_MODEL_LEN: “1”
 
 command: |
   vllm serve pastapaul/DeepSeek-V4-Flash-W4A16-FP8 \
