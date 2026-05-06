@@ -1,68 +1,40 @@
-# Recipe: DeepSeek-V4-Flash
-# DeepSeek V4 Flash with vLLM PR 40991 applied.
-# Recommended launch on two Spark nodes: ./run-recipe.sh deepseek-v4-flash --no-ray
+recipe_version: “1”
+name: DeepSeek-V4-Flash-W4A16
+model: pastapaul/DeepSeek-V4-Flash-W4A16-FP8
 
-recipe_version: "1"
-name: DeepSeek-V4-Flash
-description: vLLM serving Intel/DeepSeek-V4-Flash-W4A16-AutoRound with DeepSeek V4 parser support
+container: vllm-node-dsv4
 
-# HuggingFace model to download (optional, for --download-model)
-model: Intel/DeepSeek-V4-Flash-W4A16-AutoRound
-
-# Container image to use
-container: vllm-node-tf5
-
-# Can only be run in a cluster
 cluster_only: true
 
-# No mods required
-mods:
-  - mods/drop-caches
+mods: []
 
-# Default settings (can be overridden via CLI)
 defaults:
-  port: 54351
-  host: 0.0.0.0
-  tensor_parallel: 2
-  gpu_memory_utilization: 0.80
-  max_model_len: 200000
-  max_num_batched_tokens: 4176
-  max_num_seqs: 2
-  block_size: 256
-  load_format: instanttensor
-  compilation_config: '{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}'
+port: 54351
+host: 0.0.0.0
+tensor_parallel: 2
+gpu_memory_utilization: 0.85
+max_model_len: 1048576
 
-# Environment variables
 env:
-  HF_HOME: ${HF_HOME}
-  HF_TOKEN: ${HF_TOKEN}
-  TZ: Asia/Seoul
+TORCH_CUDA_ARCH_LIST: “12.1a”
+VLLM_ALLOW_LONG_MAX_MODEL_LEN: “1”
 
-# The vLLM serve command template.
-# In --no-ray mode, run-recipe/launch-cluster strips the Ray executor flag and
-# launch-cluster appends per-node --nnodes/--node-rank/--master-* arguments.
 command: |
-  vllm serve Intel/DeepSeek-V4-Flash-W4A16-AutoRound \
-      --served-model-name deepseek-v4-flash \
-      --trust-remote-code \
-      --kv-cache-dtype fp8 \
-      --block-size {block_size} \
-      --enable-prefix-caching \
-      --tokenizer-mode deepseek_v4 \
-      --tool-call-parser deepseek_v4 \
-      --enable-auto-tool-choice \
-      --reasoning-parser deepseek_v4 \
-      --max-model-len {max_model_len} \
-      --max-num-batched-tokens {max_num_batched_tokens} \
-      --max-num-seqs {max_num_seqs} \
-      --gpu-memory-utilization {gpu_memory_utilization} \
-      --host {host} \
-      --port {port} \
-      -tp {tensor_parallel} \
-      --compilation-config '{compilation_config}' \
-      --distributed-executor-backend ray \
-      --no-enable-flashinfer-autotune 
-
-#--compilation-config '{compilation_config}'
-#--load-format {load_format} \
-#--no-disable-uvicorn-access-log \
+  vllm serve pastapaul/DeepSeek-V4-Flash-W4A16-FP8 \
+  --served-model-name deepseek-v4-flash \
+  --trust-remote-code \
+  --kv-cache-dtype fp8 \
+  --block-size 256 \
+  --tokenizer-mode deepseek_v4 \
+  --tool-call-parser deepseek_v4 \
+  --enable-auto-tool-choice \
+  --reasoning-parser deepseek_v4 \
+  --max-model-len {max_model_len} \
+  --max-num-seqs 4 \
+  --max-num-batched-tokens 8192 \
+  --gpu-memory-utilization {gpu_memory_utilization} \
+  --host {host} \
+  --port {port} \
+  -tp {tensor_parallel} \
+  --enforce-eager \
+  --distributed-executor-backend ray
