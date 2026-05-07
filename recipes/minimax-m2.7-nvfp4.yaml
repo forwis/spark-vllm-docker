@@ -9,7 +9,7 @@ description: vLLM serving MiniMax-M2.7-NVFP4 with Ray distributed backend
 model: nvidia/MiniMax-M2.7-NVFP4
 
 # Container image to use
-container: vllm-node-tf5
+container: vllm-node
 
 # Can only be run in a cluster
 cluster_only: true

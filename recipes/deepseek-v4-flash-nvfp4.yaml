@@ -10,7 +10,7 @@ description: vLLM serving RedHatAI/DeepSeek-V4-Flash-NVFP4-FP8 with DeepSeek V4 
 model: RedHatAI/DeepSeek-V4-Flash-NVFP4-FP8
 
 # Container image to use
-container: vllm-node-tf5
+container: vllm-node
 
 # Can only be run in a cluster
 cluster_only: true
