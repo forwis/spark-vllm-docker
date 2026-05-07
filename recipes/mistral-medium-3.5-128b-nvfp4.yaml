@@ -12,7 +12,7 @@ cluster_only: false
 solo_only: false
 
 # Container image to use
-container: vllm-node-tf5
+container: vllm-node
 
 # Keep filesystem caches moving during the large checkpoint load.
 mods:

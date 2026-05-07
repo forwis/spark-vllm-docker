@@ -10,7 +10,7 @@ description: vLLM serving deepseek-ai/DeepSeek-V4-Flash with DeepSeek V4 parser 
 model: deepseek-ai/DeepSeek-V4-Flash
 
 # Container image to use
-container: vllm-node-tf5
+container: vllm-node
 
 # Can only be run in a cluster
 cluster_only: true

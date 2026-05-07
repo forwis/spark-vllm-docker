@@ -12,7 +12,7 @@ model: mistralai/Mistral-Small-4-119B-2603-NVFP4
 solo_only: true
 
 # Container image to use
-container: vllm-node-tf5
+container: vllm-node
 
 # vLLM PR 40991 adds DeepSeek V4 model, tokenizer, reasoning, and tool parser support.
 build_args:
