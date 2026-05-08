@@ -37,7 +37,7 @@ env:
 
 # The vLLM serve command template
 command: |
-  vllm serve cyankiwi/QuantTrio/MiniMax-M2.5-AWQ \
+  vllm serve QuantTrio/MiniMax-M2.5-AWQ \
       --served-model-name minimax-m2.5 \
       --trust-remote-code \
       --port {port} \
