@@ -43,5 +43,5 @@ command: |
       --kv-cache-dtype fp8  \
       --generation-config vllm \
       --enable-auto-tool-choice \
-      --tool-call-parser mimo \
-      --reasoning-parser mimo
+      --tool-call-parser qwen3_xml  \
+      --reasoning-parser qwen3 
