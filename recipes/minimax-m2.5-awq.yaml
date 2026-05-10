@@ -49,5 +49,6 @@ command: |
       --enable-auto-tool-choice \
       --tool-call-parser minimax_m2 \
       --reasoning-parser minimax_m2 \
-      --compilation-config '{compilation_config}' \
+      --kv-cache-dtype fp8 \
+      --compilation-config '{compilation_config}'
       
