@@ -9,7 +9,7 @@ description: vLLM serving Mimo-V2.5-NVFP4 with Ray distributed backend
 model: lukealonso/MiMo-V2.5-NVFP4
 
 # Container image to use
-container: vllm-node
+container: vllm-node-tf5
 
 # Can only be run in a cluster
 cluster_only: true
