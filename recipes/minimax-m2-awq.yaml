@@ -24,6 +24,7 @@ defaults:
   tensor_parallel: 2
   gpu_memory_utilization: 0.7
   max_model_len: 128000
+  compilation_config: '{"mode":3,"pass_config":{"fuse_minimax_qk_norm":true}}'
 
 # Environment variables
 env:
@@ -43,4 +44,6 @@ command: |
       --load-format fastsafetensors \
       --enable-auto-tool-choice \
       --tool-call-parser minimax_m2 \
-      --reasoning-parser minimax_m2
+      --reasoning-parser minimax_m2 \
+      --kv-cache-dtype fp8 \
+      --compilation-config '{compilation_config}'
