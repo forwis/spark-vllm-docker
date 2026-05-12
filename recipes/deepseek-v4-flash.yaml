@@ -40,6 +40,7 @@ env:
   HF_HOME: ${HF_HOME}
   HF_TOKEN: ${HF_TOKEN}
   TZ: Asia/Seoul
+  HF_HUB_OFFLINE: 1
 
 command: |
   vllm serve deepseek-ai/DeepSeek-V4-Flash \
