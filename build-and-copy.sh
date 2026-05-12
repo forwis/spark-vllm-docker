@@ -15,6 +15,8 @@ SSH_USER="$USER"
 NO_BUILD=false
 VLLM_REF="main"
 VLLM_REF_SET=false
+VLLM_REPO="https://github.com/vllm-project/vllm.git"
+VLLM_REPO_SET=false
 FLASHINFER_REF="main"
 FLASHINFER_REF_SET=false
 TMP_IMAGE=""
@@ -54,6 +56,7 @@ generate_build_metadata() {
     local pre_transformers="$6"
     local exp_mxfp4="$7"
     local vllm_prs="$8"
+    local vllm_repo="${9:-https://github.com/vllm-project/vllm.git}"
 
     local base_image
     base_image=$(grep -m1 '^FROM .* AS runner' "$dockerfile" | awk '{print $2}')
@@ -67,6 +70,7 @@ flashinfer_commit: ${flashinfer_commit:-unknown}
 gpu_arch: ${GPU_ARCH_LIST}
 base_image: ${base_image:-unknown}
 build_args:
+  vllm_repo: ${vllm_repo}
   vllm_ref: ${vllm_ref}
   transformers_5: ${pre_transformers}
   exp_mxfp4: ${exp_mxfp4}
@@ -273,6 +277,7 @@ usage() {
     echo "  --gpu-arch <arch>             : GPU architecture (default: '12.1a')"
     echo "  --rebuild-flashinfer          : Force rebuild of FlashInfer wheels (ignore cached wheels)"
     echo "  --rebuild-vllm                : Force rebuild of vLLM wheels (ignore cached wheels)"
+    echo "  --vllm-repo <url>             : vLLM git repository URL (default: 'https://github.com/vllm-project/vllm.git')"
     echo "  --vllm-ref <ref>              : vLLM commit SHA, branch or tag (default: 'main')"
     echo "  --flashinfer-ref <ref>        : FlashInfer commit SHA, branch or tag (default: 'main')"
     echo "  -c, --copy-to <hosts>         : Host(s) to copy the image to. Accepts comma or space-delimited lists."
@@ -302,6 +307,7 @@ while [[ "$#" -gt 0 ]]; do
         --gpu-arch) GPU_ARCH_LIST="$2"; shift ;;
         --rebuild-flashinfer) REBUILD_FLASHINFER=true ;;
         --rebuild-vllm) REBUILD_VLLM=true ;;
+        --vllm-repo) VLLM_REPO="$2"; VLLM_REPO_SET=true; shift ;;
         --vllm-ref) VLLM_REF="$2"; VLLM_REF_SET=true; shift ;;
         --flashinfer-ref) FLASHINFER_REF="$2"; FLASHINFER_REF_SET=true; shift ;;
         -c|--copy-to|--copy-to-host|--copy-to-hosts)
@@ -418,6 +424,10 @@ if [ -n "$VLLM_PRS" ]; then
     if [ "$EXP_MXFP4" = true ]; then echo "Error: --apply-vllm-pr is incompatible with --exp-mxfp4"; exit 1; fi
 fi
 
+if [ "$VLLM_REPO_SET" = true ]; then
+    if [ "$EXP_MXFP4" = true ]; then echo "Error: --vllm-repo is incompatible with --exp-mxfp4"; exit 1; fi
+fi
+
 if [ -n "$FLASHINFER_PRS" ]; then
     if [ "$EXP_MXFP4" = true ]; then echo "Error: --apply-flashinfer-pr is incompatible with --exp-mxfp4"; exit 1; fi
 fi
@@ -440,7 +450,7 @@ fi
 if [[ "$CLEANUP_MODE" == "true" ]]; then
     WHEELS_DIR="./wheels"
     echo "Cleaning up wheels directory..."
-    
+
     # Remove all .whl files
     if compgen -G "$WHEELS_DIR/*.whl" > /dev/null 2>&1; then
         rm -f "$WHEELS_DIR"/*.whl
@@ -448,7 +458,7 @@ if [[ "$CLEANUP_MODE" == "true" ]]; then
     else
         echo "No *.whl files found in $WHEELS_DIR"
     fi
-    
+
     # Remove all .-commit files
     if compgen -G "$WHEELS_DIR/.*-commit" > /dev/null 2>&1; then
         rm -f "$WHEELS_DIR"/.*-commit
@@ -456,7 +466,7 @@ if [[ "$CLEANUP_MODE" == "true" ]]; then
     else
         echo "No .*-commit files found in $WHEELS_DIR"
     fi
-    
+
     echo "Cleanup complete."
 fi
 
@@ -569,18 +579,18 @@ if [ "$NO_BUILD" = false ]; then
         # ----------------------------------------------------------
         # Phase 2: vLLM wheels
         # ----------------------------------------------------------
-        if [ "$VLLM_REF_SET" = true ] || [ -n "$VLLM_PRS" ]; then
+        if [ "$VLLM_REF_SET" = true ] || [ "$VLLM_REPO_SET" = true ] || [ -n "$VLLM_PRS" ]; then
             REBUILD_VLLM=true
         fi
 
         BUILD_VLLM=false
         if [ "$REBUILD_VLLM" = true ]; then
-            if [ "$VLLM_REF_SET" = true ] && [ -n "$VLLM_PRS" ]; then
-                echo "Rebuilding vLLM wheels (--vllm-ref and --apply-vllm-pr specified)..."
-            elif [ "$VLLM_REF_SET" = true ]; then
-                echo "Rebuilding vLLM wheels (--vllm-ref specified)..."
-            elif [ -n "$VLLM_PRS" ]; then
-                echo "Rebuilding vLLM wheels (--apply-vllm-pr specified)..."
+            VLLM_REBUILD_REASONS=()
+            [ "$VLLM_REPO_SET" = true ] && VLLM_REBUILD_REASONS+=("--vllm-repo specified")
+            [ "$VLLM_REF_SET" = true ] && VLLM_REBUILD_REASONS+=("--vllm-ref specified")
+            [ -n "$VLLM_PRS" ] && VLLM_REBUILD_REASONS+=("--apply-vllm-pr specified")
+            if [ "${#VLLM_REBUILD_REASONS[@]}" -gt 0 ]; then
+                echo "Rebuilding vLLM wheels (${VLLM_REBUILD_REASONS[*]})..."
             else
                 echo "Rebuilding vLLM wheels (--rebuild-vllm specified)..."
             fi
@@ -606,6 +616,7 @@ if [ "$NO_BUILD" = false ]; then
                 "--target" "vllm-export"
                 "--output" "type=local,dest=./wheels"
                 "${COMMON_BUILD_FLAGS[@]}"
+                "--build-arg" "VLLM_REPO=$VLLM_REPO"
                 "--build-arg" "VLLM_REF=$VLLM_REF")
 
             if [ "$REBUILD_VLLM" = true ]; then
@@ -648,7 +659,7 @@ if [ "$NO_BUILD" = false ]; then
         FLASHINFER_COMMIT=""
         [ -f "./wheels/.flashinfer-commit" ] && FLASHINFER_COMMIT=$(cat ./wheels/.flashinfer-commit)
         generate_build_metadata Dockerfile "$VLLM_VERSION" "$VLLM_COMMIT" "$FLASHINFER_COMMIT" \
-            "$VLLM_REF" "$PRE_TRANSFORMERS" "false" "$VLLM_PRS"
+            "$VLLM_REF" "$PRE_TRANSFORMERS" "false" "$VLLM_PRS" "$VLLM_REPO"
 
         RUNNER_CMD=("docker" "build"
             "-t" "$IMAGE_TAG"
