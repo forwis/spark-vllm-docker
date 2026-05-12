@@ -465,7 +465,12 @@ def generate_launch_script(
     if env_vars:
         lines.append("# Environment variables")
         for key, value in env_vars.items():
-            lines.append(f'export {key}="{value}"')
+            # Expand environment variables in the value (e.g. ${HF_HOME})
+            if isinstance(value, str):
+                expanded_value = os.path.expandvars(value)
+                lines.append(f'export {key}="{expanded_value}"')
+            else:
+                lines.append(f'export {key}="{value}"')
         lines.append("")
 
     # Format the command with parameters
