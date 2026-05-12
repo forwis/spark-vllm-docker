@@ -3,9 +3,19 @@
 # Default Configuration
 IMAGE_NAME="vllm-node"
 DEFAULT_CONTAINER_NAME="vllm_node"
-HF_CACHE_DIR="${HF_HOME:-$HOME/.cache/huggingface}"
+
+# HF_HOME handling: if set on host, mount to the same path in container.
+# Otherwise, mount default cache dir to /root/.cache/huggingface.
+if [[ -n "$HF_HOME" ]]; then
+    HF_CACHE_DIR="$HF_HOME"
+    HF_MOUNT_POINT="$HF_HOME"
+else
+    HF_CACHE_DIR="$HOME/.cache/huggingface"
+    HF_MOUNT_POINT="/root/.cache/huggingface"
+fi
+
 # Modify these if you want to pass additional docker args or set VLLM_SPARK_EXTRA_DOCKER_ARGS variable
-DOCKER_ARGS="-e NCCL_IGNORE_CPU_AFFINITY=1 -v $HF_CACHE_DIR:/root/.cache/huggingface"
+DOCKER_ARGS="-e NCCL_IGNORE_CPU_AFFINITY=1 -v $HF_CACHE_DIR:$HF_MOUNT_POINT"
 
 # Append additional arguments from environment variable
 if [[ -n "$VLLM_SPARK_EXTRA_DOCKER_ARGS" ]]; then
