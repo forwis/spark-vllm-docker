@@ -5,6 +5,9 @@ model: Intel/DeepSeek-V4-Flash-W4A16-AutoRound
 container: vllm-node-dsv4
 cluster_only: true
 
+mods:
+  - mods/fix-deepseek-v4-scale-fmt
+
 build_args:
   - --vllm-repo
   - https://github.com/jasl/vllm.git
