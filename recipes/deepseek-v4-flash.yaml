@@ -1,7 +1,7 @@
 recipe_version: "1"
 name: DeepSeek V4 Flash
 description: Official DeepSeek V4 Flash recipe for dual DGX Spark TP=2 with CUDA graphs, fp8 KV cache, MTP, and 200K context.
-model: pastapaul/DeepSeek-V4-Flash-W4A16-FP8
+model: deepseek-ai/DeepSeek-V4-Flash
 container: vllm-node-dsv4
 cluster_only: true
 
@@ -43,7 +43,7 @@ env:
   HF_HUB_OFFLINE: 1
 
 command: |
-  vllm serve pastapaul/DeepSeek-V4-Flash-W4A16-FP8 \
+  vllm serve deepseek-ai/DeepSeek-V4-Flash \
     --served-model-name {served_model_name} \
     --host {host} \
     --port {port} \
