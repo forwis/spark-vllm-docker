@@ -18,7 +18,6 @@ defaults:
   tensor_parallel: 2
   pipeline_parallel: 1
   gpu_memory_utilization: 0.85
-  max_model_len: 200000
   max_num_batched_tokens: 8192
   max_num_seqs: 4
   block_size: 256
@@ -54,7 +53,6 @@ command: |
     --kv-cache-dtype fp8 \
     --block-size {block_size} \
     --enable-prefix-caching \
-    --max-model-len {max_model_len} \
     --max-num-seqs {max_num_seqs} \
     --max-num-batched-tokens {max_num_batched_tokens} \
     --gpu-memory-utilization {gpu_memory_utilization} \
@@ -69,3 +67,5 @@ command: |
     --reasoning-config '{{"reasoning_parser":"deepseek_v4","reasoning_start_str":"<think>","reasoning_end_str":"</think>"}}' \
     --default-chat-template-kwargs '{{"thinking":true}}' \
     --load-format safetensors
+
+#  --max-model-len {max_model_len} \
