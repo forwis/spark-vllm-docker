@@ -9,7 +9,7 @@ build_args:
   - --vllm-repo
   - https://github.com/jasl/vllm.git
   - --vllm-ref
-  - codex/ds4-sm120-min-enable
+  - dda4668b59567416f86956cfe7bbc1eab371a61e
   - --rebuild-vllm
 
 defaults:
