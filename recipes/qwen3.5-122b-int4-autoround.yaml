@@ -13,6 +13,8 @@ model: Intel/Qwen3.5-122B-A10B-int4-AutoRound
 # Container image to use
 container: vllm-node-tf5
 
+solo_only: true
+
 build_args:
   - --tf5
 
@@ -25,8 +27,8 @@ mods:
 defaults:
   port: 54351
   host: 0.0.0.0
-  tensor_parallel: 2
-  gpu_memory_utilization: 0.7
+  tensor_parallel: 1
+  gpu_memory_utilization: 0.92
   max_model_len: 262144
   max_num_batched_tokens: 8192
 
@@ -41,6 +43,7 @@ env:
 # The vLLM serve command template
 command: |
   vllm serve Intel/Qwen3.5-122B-A10B-int4-AutoRound \
+    --served-model-name qwen3.5-122b-a10b \
     --max-model-len {max_model_len} \
     --gpu-memory-utilization {gpu_memory_utilization} \
     --port {port} \
@@ -53,6 +56,5 @@ command: |
     --max-num-batched-tokens {max_num_batched_tokens} \
     --trust-remote-code \
     --chat-template unsloth.jinja \
-    -tp {tensor_parallel} \
-    --distributed-executor-backend ray
+    -tp {tensor_parallel}
 
