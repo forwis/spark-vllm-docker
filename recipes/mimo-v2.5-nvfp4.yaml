@@ -47,7 +47,7 @@ mods:
   - mods/fix-modelopt-mixed-mxfp8
 
 defaults:
-  port: 8000
+  port: 54351
   host: 0.0.0.0
   served_model_name: MiMo-V2.5-NVFP4
   tensor_parallel: 2
