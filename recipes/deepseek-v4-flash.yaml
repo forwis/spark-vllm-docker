@@ -22,6 +22,7 @@ defaults:
   max_num_seqs: 4
   block_size: 256
   served_model_name: deepseek-v4-flash
+  max_model_len: 262144
 
 env:
   TORCH_CUDA_ARCH_LIST: 12.1a
@@ -66,6 +67,5 @@ command: |
     --reasoning-parser deepseek_v4 \
     --reasoning-config '{{"reasoning_parser":"deepseek_v4","reasoning_start_str":"<think>","reasoning_end_str":"</think>"}}' \
     --default-chat-template-kwargs '{{"thinking":true}}' \
-    --load-format safetensors
-
-#  --max-model-len {max_model_len} \
+    --load-format safetensors \
+    --max-model-len {max_model_len}
