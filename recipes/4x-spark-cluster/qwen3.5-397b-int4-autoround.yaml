@@ -25,7 +25,7 @@ env:
 
 # Default settings (can be overridden via CLI, e.g. --tensor_parallel 2)
 defaults:
-  port: 8000
+  port: 54312
   host: 0.0.0.0
   tensor_parallel: 4
   gpu_memory_utilization: 0.78
