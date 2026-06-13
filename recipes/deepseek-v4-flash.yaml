@@ -1,0 +1,52 @@
+# Recipe: DeepSeek-V4-Flash official FP8 on dual DGX Spark
+# Based on vLLM PR #41834 latest head f32247a5 (2026-06-11), including sparse MLA stats env fix.
+# Keep CUDA graphs enabled; do not add --enforce-eager.
+
+recipe_version: "1"
+name: DeepSeek-V4-Flash
+# Official DeepSeek V4 Flash FP8 model on dual DGX Spark TP=2.
+description: DeepSeek V4 Flash FP8 on dual DGX Spark TP=2 with PR 41834 SM12x support, MTP disabled for stable concurrent serving
+model: deepseek-ai/DeepSeek-V4-Flash
+container: vllm-node:dsv4f
+
+cluster_only: true
+
+mods: []
+
+env: []
+
+defaults:
+  port: 54312
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.8
+  max_num_seqs: 8
+  block_size: 256
+  served_model_name: deepseek-v4-flash
+
+command: |
+  vllm serve deepseek-ai/DeepSeek-V4-Flash \
+      --served-model-name {served_model_name} \
+      --host {host} \
+      --port {port} \
+      --trust-remote-code \
+      --tensor-parallel-size {tensor_parallel} \
+      --pipeline-parallel-size 1 \
+      --enable-expert-parallel \
+      --kv-cache-dtype fp8 \
+      --block-size {block_size} \
+      --enable-prefix-caching \
+      --max-model-len auto \
+      --max-num-seqs {max_num_seqs} \
+      --max-num-batched-tokens 4096 \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --no-enable-flashinfer-autotune \
+      --compilation-config '{{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}}' \
+      --tokenizer-mode deepseek_v4 \
+      --tool-call-parser deepseek_v4 \
+      --enable-auto-tool-choice \
+      --reasoning-parser deepseek_v4 \
+      --reasoning-config '{{"reasoning_parser":"deepseek_v4","reasoning_start_str":"<think>","reasoning_end_str":"</think>"}}' \
+      --default-chat-template-kwargs '{{"thinking":true}}' \
+      --speculative-config '{{"method":"deepseek_mtp","num_speculative_tokens":2}}'
+      --load-format safetensors

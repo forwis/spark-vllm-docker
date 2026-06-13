@@ -6,6 +6,7 @@ description: vLLM serving Nemotron-3-Super-120B using CUTLASS kernels
 
 model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4
 container: vllm-node
+
 cluster_only: false
 solo_only: false
 
@@ -16,7 +17,6 @@ env:
   VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
 
-container: vllm-node
 defaults:
   port: 54312
   host: 0.0.0.0
