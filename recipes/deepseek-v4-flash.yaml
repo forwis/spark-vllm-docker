@@ -19,7 +19,7 @@ defaults:
   port: 54312
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.8
+  gpu_memory_utilization: 0.75
   max_num_seqs: 8
   block_size: 256
   served_model_name: deepseek-v4-flash
@@ -49,4 +49,4 @@ command: |
       --reasoning-config '{{"reasoning_parser":"deepseek_v4","reasoning_start_str":"<think>","reasoning_end_str":"</think>"}}' \
       --default-chat-template-kwargs '{{"thinking":true}}' \
       --speculative-config '{{"method":"deepseek_mtp","num_speculative_tokens":2}}' \
-      --load-format safetensors
+      --load-format instanttensor
