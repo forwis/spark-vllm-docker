@@ -1,8 +1,8 @@
-# Recipe: Qwen3.6-35B-A3B-NVFP4-Marlin
-# Qwen3.6-35B-A3B model in NVIDIA NVFP4 format with Marlin MoE backend.
+# Recipe: Qwen3.6-35B-A3B-NVFP4
+# Qwen3.6-35B-A3B model in native NVFP4 format with Marlin MoE backend
 
 recipe_version: "1"
-name: Qwen3.6-35B-A3B-NVFP4-Marlin
+name: Qwen36-35B-A3B
 description: vLLM serving nvidia/Qwen3.6-35B-A3B-NVFP4 with Marlin MoE backend
 
 # HuggingFace model to download (optional, for --download-model)
@@ -11,9 +11,12 @@ model: nvidia/Qwen3.6-35B-A3B-NVFP4
 # Container image to use
 container: vllm-node
 
+mods:
+  - mods/fix-qwen3.6-chat-template
+
 # Default settings (can be overridden via CLI)
 defaults:
-  port: 8000
+  port: 54312
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.4
