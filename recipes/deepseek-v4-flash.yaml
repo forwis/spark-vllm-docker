@@ -7,7 +7,7 @@ name: DeepSeek-V4-Flash
 # Official DeepSeek V4 Flash FP8 model on dual DGX Spark TP=2.
 description: DeepSeek V4 Flash FP8 on dual DGX Spark TP=2 with PR 41834 SM12x support, MTP disabled for stable concurrent serving
 model: deepseek-ai/DeepSeek-V4-Flash
-container: vllm-node-dsv4f:v2
+container: vllm-node-dsv4f
 
 cluster_only: true
 
