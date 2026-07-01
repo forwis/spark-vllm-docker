@@ -572,7 +572,7 @@ RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
      uv pip install nvidia-nvshmem-cu13 "apache-tvm-ffi<0.2"
 
 # Install wheels from host ./wheels/ (bind-mounted from build context — no layer bloat)
-# With --tf5: override vLLM's transformers<5 constraint to get transformers>=5
+# PRE_TRANSFORMERS=1 is retained for manual legacy builds; build-and-copy.sh no longer sets it for --tf5.
 # FastAPI 0.137.0 adds _IncludedRouter entries that currently break
 # prometheus-fastapi-instrumentator route name lookup.
 RUN --mount=type=bind,source=wheels,target=/workspace/wheels \
