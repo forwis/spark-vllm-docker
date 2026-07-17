@@ -25,8 +25,7 @@ defaults:
   gpu_memory_utilization: 0.9
 
 # Environment variables
-env:
-  VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm 
+env: {}
 
 # The vLLM serve command template
 command: |
