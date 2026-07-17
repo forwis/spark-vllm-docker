@@ -6,7 +6,7 @@ name: Hy3-NVFP4
 description: vLLM serving Hy3-NVFP4 on a multi-node cluster
 
 # HuggingFace model to download (optional, for --download-model)
-model: RedHatAI/Hy3-NVFP4-FP8
+model: LibertAIDAI/Hy3-NVFP4
 
 # Container image to use
 container: vllm-node
@@ -25,11 +25,12 @@ defaults:
   gpu_memory_utilization: 0.9
 
 # Environment variables
-env: {}
+env:
+  VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
 
 # The vLLM serve command template
 command: |
-  vllm serve RedHatAI/Hy3-NVFP4-FP8 \
+  vllm serve LibertAIDAI/Hy3-NVFP4 \
       --trust-remote-code \
       --port {port} \
       --host {host} \
