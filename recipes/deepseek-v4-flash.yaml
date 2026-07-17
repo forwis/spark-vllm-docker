@@ -6,7 +6,7 @@ recipe_version: "1"
 name: DeepSeek-V4-Flash
 # Official DeepSeek V4 Flash FP8 model on dual DGX Spark TP=2.
 description: DeepSeek V4 Flash FP8 on dual DGX Spark TP=2 with PR 41834 SM12x support, MTP disabled for stable concurrent serving
-model: LibertAIDAI/Hy3-NVFP4
+model: deepseek-ai/DeepSeek-V4-Flash
 container: vllm-node-dsv4f
 
 cluster_only: true
@@ -25,7 +25,7 @@ defaults:
   served_model_name: deepseek-v4-flash
 
 command: |
-  vllm serve LibertAIDAI/Hy3-NVFP4 \
+  vllm serve deepseek-ai/DeepSeek-V4-Flash \
       --served-model-name {served_model_name} \
       --host {host} \
       --port {port} \
