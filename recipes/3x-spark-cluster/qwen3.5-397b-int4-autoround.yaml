@@ -20,7 +20,7 @@ mods:
 
 # Default settings (can be overridden via CLI)
 defaults:
-  port: 54312
+  port: 54351
   host: 0.0.0.0
   pipeline_parallel: 3
   gpu_memory_utilization: 0.7

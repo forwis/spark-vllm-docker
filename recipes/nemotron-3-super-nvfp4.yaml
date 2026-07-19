@@ -18,7 +18,7 @@ env:
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
 
 defaults:
-  port: 54312
+  port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.8
