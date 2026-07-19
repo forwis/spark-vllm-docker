@@ -22,7 +22,7 @@ defaults:
   port: 54312
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.90
+  gpu_memory_utilization: 0.94
   max_model_len: 262144
 
 # Environment variables
