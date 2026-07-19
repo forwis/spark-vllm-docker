@@ -24,6 +24,8 @@ defaults:
   tensor_parallel: 2
   gpu_memory_utilization: 0.92
   max_model_len: 262144
+  max_num_batched_tokens: 4096
+  max_num_seqs: 8
 
 # Environment variables
 env:
@@ -40,6 +42,8 @@ command: |
       -tp {tensor_parallel} \
       --distributed-executor-backend ray \
       --max-model-len {max_model_len} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --max-num-seqs {max_num_seqs} 
       --load-format auto \
       --kv-cache-dtype fp8 \
       --enable-auto-tool-choice \
