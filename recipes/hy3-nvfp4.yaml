@@ -29,7 +29,7 @@ defaults:
 
 # Environment variables
 env:
-  VLLM_FLASHINFER_ALLREDUCE_BACKEND: flashinfer
+  VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
   VLLM_MARLIN_USE_ATOMIC_ADD: 1
 
 # The vLLM serve command template
