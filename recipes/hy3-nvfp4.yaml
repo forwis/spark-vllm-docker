@@ -6,7 +6,7 @@ name: Hy3-NVFP4
 description: vLLM serving Hy3-NVFP4 on a multi-node cluster
 
 # HuggingFace model to download (optional, for --download-model)
-model: LibertAIDAI/Hy3-NVFP4
+model: RedHatAI/Hy3-NVFP4-FP8
 
 # Container image to use
 container: vllm-node
@@ -23,21 +23,23 @@ defaults:
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.85
+  max_model_len: 262144
 
 # Environment variables
 env:
   VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
+  VLLM_MARLIN_USE_ATOMIC_ADD: 1
 
 # The vLLM serve command template
 command: |
-  vllm serve LibertAIDAI/Hy3-NVFP4 \
+  vllm serve RedHatAI/Hy3-NVFP4-FP8 \
       --trust-remote-code \
       --port {port} \
       --host {host} \
       --gpu-memory-utilization {gpu_memory_utilization} \
       -tp {tensor_parallel} \
       --distributed-executor-backend ray \
-      --max-model-len auto \
+      --max-model-len {max_model_len} \
       --load-format fastsafetensors \
       --enable-auto-tool-choice \
       --tool-call-parser hy_v3  \
