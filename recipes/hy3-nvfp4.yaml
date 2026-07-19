@@ -29,7 +29,7 @@ defaults:
 
 # Environment variables
 env:
-  VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
+  VLLM_FLASHINFER_ALLREDUCE_BACKEND: flashinfer
   VLLM_MARLIN_USE_ATOMIC_ADD: 1
 
 # The vLLM serve command template
@@ -49,7 +49,6 @@ command: |
       --kv-cache-dtype fp8 \
       --enable-auto-tool-choice \
       --tool-call-parser hy_v3  \
-      --reasoning-parser hy_v3
-
-#  --speculative-config.method mtp \
-#  --speculative-config.num_speculative_tokens 2
+      --reasoning-parser hy_v3 \
+      --speculative-config.method mtp \
+      --speculative-config.num_speculative_tokens 2
