@@ -40,7 +40,7 @@ command: |
       -tp {tensor_parallel} \
       --distributed-executor-backend ray \
       --max-model-len {max_model_len} \
-      --load-format instanttensor \
+      --load-format auto \
       --enable-auto-tool-choice \
       --tool-call-parser hy_v3  \
       --reasoning-parser hy_v3 \
