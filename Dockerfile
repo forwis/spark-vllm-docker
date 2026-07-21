@@ -354,8 +354,7 @@ WORKDIR $VLLM_BASE_DIR/vllm
 
 # Temporary upstream fixes carried until they are present in the pinned vLLM ref.
 # See https://github.com/vllm-project/vllm/pull/47392
-# See https://github.com/vllm-project/vllm/pull/47618
-ARG VLLM_PRESET_PRS="47392 47618"
+ARG VLLM_PRESET_PRS="47392"
 ARG VLLM_APPLY_PRESET_PRS=""
 ARG VLLM_PRS=""
 
