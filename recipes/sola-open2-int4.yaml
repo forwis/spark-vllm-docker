@@ -1,0 +1,52 @@
+# Recipe: Solar-Open2-INT4
+# Solar-Open2 model with INT4 quantization
+
+recipe_version: "1"
+name: Solar-Open2-INT4
+description: vLLM serving Solar-Open2-INT4 on a multi-node cluster
+
+# HuggingFace model to download (optional, for --download-model)
+model: nota-ai/Solar-Open2-250B-Nota-INT4
+
+# Container image to use
+container: vllm-node-so2
+
+# Can only be run in a cluster
+cluster_only: true
+
+# No mods required
+mods: []
+
+# Default settings (can be overridden via CLI)
+defaults:
+  port: 54351
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.80
+  max_num_batched_tokens: 4096
+  max_num_seqs: 8
+
+# Environment variables
+env: []
+
+# The vLLM serve command template
+command: |
+  vllm serve nota-ai/Solar-Open2-250B-Nota-INT4 \
+      --served-model-name solar-open2 \
+      --trust-remote-code \
+      --port {port} \
+      --host {host} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --tensor-parallel-size {tensor_parallel} \
+      --enable-expert-parallel \
+      --distributed-executor-backend ray \
+      --max-model-len auto \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --max-num-seqs {max_num_seqs} \
+      --load-format auto \
+      --moe-backend triton \
+      --default-chat-template-kwargs '{{"think_render_option":"preserved"}}' \
+      --reasoning-parser solar_open2 \
+      --tool-call-parser solar_open2 \
+      --enable-auto-tool-choice \
+      --logits-processors vllm.v1.sample.logits_processor.solar_open2:SolarOpen2TemplateLogitsProcessor
