@@ -52,4 +52,5 @@ command: |
       --enable-auto-tool-choice \
       --logits-processors vllm.v1.sample.logits_processor.solar_open2:SolarOpen2TemplateLogitsProcessor \
       --enable-chunked-prefill \
-      --enable-prefix-caching
+      --enable-prefix-caching \
+      --kv-cache-dtype fp8
