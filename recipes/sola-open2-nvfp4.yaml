@@ -27,7 +27,8 @@ defaults:
   max_num_seqs: 8
 
 # Environment variables
-env: []
+env:
+  VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
 
 # The vLLM serve command template
 command: |
@@ -44,7 +45,6 @@ command: |
       --max-num-batched-tokens {max_num_batched_tokens} \
       --max-num-seqs {max_num_seqs} \
       --load-format auto \
-      --moe-backend triton \
       --default-chat-template-kwargs '{{"think_render_option":"preserved"}}' \
       --reasoning-parser solar_open2 \
       --tool-call-parser solar_open2 \
