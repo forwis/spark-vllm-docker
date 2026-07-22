@@ -45,7 +45,7 @@ command: |
       --max-num-seqs {max_num_seqs} \
       --load-format auto \
       --moe-backend triton \
-      --default-chat-template-kwargs '{"think_render_option":"preserved"}' \
+      --default-chat-template-kwargs '{{"think_render_option":"preserved"}}' \
       --reasoning-parser solar_open2 \
       --tool-call-parser solar_open2 \
       --enable-auto-tool-choice \
