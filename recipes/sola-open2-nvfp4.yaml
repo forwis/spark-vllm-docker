@@ -53,4 +53,4 @@ command: |
       --enable-chunked-prefill \
       --enable-prefix-caching \
       --kv-cache-dtype fp8 \
-      --moe-backend marlin
+      --moe-backend FLASHINFER_TRTLLM
