@@ -22,7 +22,7 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.80
+  gpu_memory_utilization: 0.82
   max_num_batched_tokens: 4096
   max_num_seqs: 8
 
