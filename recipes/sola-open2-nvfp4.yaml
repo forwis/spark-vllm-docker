@@ -9,7 +9,7 @@ description: vLLM serving Solar-Open2-NVFP4 on a multi-node cluster
 model: nota-ai/Solar-Open2-250B-Nota-NVFP4
 
 # Container image to use
-container: vllm-node-so2
+container: vllm-node-so2:v0.26.0
 
 # Can only be run in a cluster
 cluster_only: true
