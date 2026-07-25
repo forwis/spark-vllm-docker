@@ -9,7 +9,7 @@ description: vLLM serving Solar-Open2-NVFP4 on a multi-node cluster
 model: nota-ai/Solar-Open2-250B-Nota-NVFP4
 
 # Container image to use
-container: vllm-node-so2:v0.26.0
+container: vllm-node-so2
 
 # Can only be run in a cluster
 cluster_only: true
@@ -53,4 +53,4 @@ command: |
       --enable-chunked-prefill \
       --enable-prefix-caching \
       --kv-cache-dtype fp8 \
-      --moe-backend triton
+      --disable-custom-all-reduce
