@@ -1,0 +1,44 @@
+# Recipe: microsoft/Fara1.5-27B
+# microsoft/Fara1.5-27B model
+
+recipe_version: "1"
+name: Fara1.5-27B
+description: vLLM serving Fara1.5-27B
+
+# HuggingFace model to download (optional, for --download-model)
+model: microsoft/Fara1.5-27B
+
+#solo_only: true
+
+# Container image to use
+container: vllm-node
+
+mods: []
+
+# Default settings (can be overridden via CLI)
+defaults:
+  port: 54351
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.35
+  max_model_len: 262144
+  max_num_batched_tokens: 8192
+
+# Environment variables
+env: 
+  VLLM_MARLIN_USE_ATOMIC_ADD: 1
+
+# The vLLM serve command template
+command: |
+  vllm serve microsoft/Fara1.5-27B \
+    --host {host} \
+    --port {port} \
+    --dtype bfloat16 \
+    --max-model-len {max_model_len} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --enable-auto-tool-choice \
+    --enable-prefix-caching \
+    --limit-mm-per-prompt image=10 \
+    -tp {tensor_parallel} \
+    --distributed-executor-backend ray
