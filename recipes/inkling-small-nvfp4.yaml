@@ -25,8 +25,7 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.8
-  max_model_len: 262144
+  gpu_memory_utilization: 0.90
   max_num_seqs: 2
   num_speculative_tokens: 1
 
