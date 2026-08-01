@@ -245,6 +245,11 @@ ARG CACHEBUST_VLLM=1
 # Git reference (branch, tag, or SHA) to checkout
 ARG VLLM_REF=main
 
+# Override vLLM version detection to avoid failures when git tags
+# don't conform to PEP 440 / setuptools_scm's expected format.
+ARG VLLM_VERSION_OVERRIDE=
+ENV VLLM_VERSION_OVERRIDE=${VLLM_VERSION_OVERRIDE}
+
 # Pinned while investigating an SM121 DeepSeek-V4 MXFP4 grouped scale-factor
 # regression first observed at nv_dev f8e8fb5 (PR #384); last known good.
 ARG DEEPGEMM_REPO=https://github.com/deepseek-ai/DeepGEMM.git

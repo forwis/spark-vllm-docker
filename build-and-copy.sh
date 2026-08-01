@@ -797,7 +797,8 @@ if [ "$NO_BUILD" = false ]; then
                 "--target" "vllm-export"
                 "--output" "type=local,dest=./wheels"
                 "${COMMON_BUILD_FLAGS[@]}"
-                "--build-arg" "VLLM_REF=$VLLM_REF")
+                "--build-arg" "VLLM_REF=$VLLM_REF"
+                "--build-arg" "VLLM_VERSION_OVERRIDE=0.0.1.dev")
 
             if [ "$APPLY_PRESET_VLLM_PRS" = true ]; then
                 echo "Applying preset vLLM PRs from the Dockerfile (explicitly requested)."
