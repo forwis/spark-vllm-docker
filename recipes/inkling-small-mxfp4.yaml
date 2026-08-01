@@ -1,12 +1,12 @@
-# Recipe: Inkling-Small-NVFP4
-# Inkling Small with NVFP4 quantization and MTP speculative decoding
+# Recipe: Inkling-Small-MXFP4
+# Inkling Small with MXFP4 quantization and MTP speculative decoding
 
 recipe_version: "1"
-name: Inkling-Small-NVFP4
-description: vLLM serving thinkingmachines/Inkling-Small-NVFP4 on a two-node DGX Spark cluster
+name: Inkling-Small-MXFP4
+description: vLLM serving thinkingmachines/Inkling-Small-MXFP4 on a two-node DGX Spark cluster
 
 # HuggingFace model to download with --setup
-model: thinkingmachines/Inkling-Small-NVFP4
+model: mlx-community/Inkling-Small-mxfp4
 
 # The launch command uses tensor parallelism across two nodes
 cluster_only: true
@@ -25,8 +25,7 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.8
-  max_model_len: 262144
+  gpu_memory_utilization: 0.9
   max_num_seqs: 2
   num_speculative_tokens: 1
 
@@ -39,7 +38,7 @@ env:
 
 # The vLLM serve command template
 command: |
-  vllm serve thinkingmachines/Inkling-Small-NVFP4 \
+  vllm serve mlx-community/Inkling-Small-mxfp4 \
     --served-model-name inkling-small \
     --host {host} \
     --port {port} \
@@ -53,7 +52,6 @@ command: |
     --max-model-len auto \
     --max-num-seqs {max_num_seqs} \
     --load-format instanttensor \
-    --quantization nvfp4 \
     --enable-prefix-caching \
     --enable-chunked-prefill \
     --async-scheduling \
