@@ -3,10 +3,10 @@
 
 recipe_version: "1"
 name: DeepSeek-V4-Flash
-description: vLLM serving deepseek-ai/DeepSeek-V4-Flash on a DGX Spark cluster
+description: vLLM serving deepseek-ai/DeepSeek-V4-Flash-0731 on a DGX Spark cluster
 
 # HuggingFace model to download (optional, for --download-model)
-model: deepseek-ai/DeepSeek-V4-Flash
+model: deepseek-ai/DeepSeek-V4-Flash-0731
 
 # Container image to use
 container: vllm-node
@@ -27,6 +27,7 @@ defaults:
   max_num_seqs: 8
   max_num_batched_tokens: 8192
   num_speculative_tokens: 2
+  served_model_name: deepseek-v4-flash
 
 # Environment variables
 env:
@@ -36,7 +37,8 @@ env:
 
 # The vLLM serve command template
 command: |
-  vllm serve deepseek-ai/DeepSeek-V4-Flash \
+  vllm serve deepseek-ai/DeepSeek-V4-Flash-0731 \
+      --served-model-name {served_model_name} \
       --host {host} \
       --port {port} \
       --trust-remote-code \
@@ -48,13 +50,17 @@ command: |
       --max-num-batched-tokens {max_num_batched_tokens} \
       --gpu-memory-utilization {gpu_memory_utilization} \
       --enable-prefix-caching \
-      --speculative-config '{{"method":"mtp","num_speculative_tokens":{num_speculative_tokens}}}' \
+      --enable-chunked-prefill \
       --tokenizer-mode deepseek_v4 \
       --distributed-executor-backend ray \
       --tool-call-parser deepseek_v4 \
       --enable-auto-tool-choice \
       --reasoning-parser deepseek_v4 \
-      --reasoning-config '{{"reasoning_parser":"deepseek_v4","reasoning_start_str":"","reasoning_end_str":""}}' \
-      --default-chat-template-kwargs.thinking=true \
-      --default-chat-template-kwargs.reasoning_effort=high \
+      --compilation-config '{{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}}' \
+      --speculative-config '{{"method":"dspark","num_speculative_tokens":5,"draft_sample_method":"greedy"}}' \
       --load-format instanttensor
+
+#--speculative-config '{{"method":"mtp","num_speculative_tokens":{num_speculative_tokens}}}' \
+#--reasoning-config '{{"reasoning_parser":"deepseek_v4","reasoning_start_str":"","reasoning_end_str":""}}' \
+#--default-chat-template-kwargs.thinking=true \
+#--default-chat-template-kwargs.reasoning_effort=high \
