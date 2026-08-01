@@ -26,7 +26,6 @@ defaults:
   block_size: 256
   max_num_seqs: 8
   max_num_batched_tokens: 8192
-  num_speculative_tokens: 2
   served_model_name: deepseek-v4-flash
 
 # Environment variables
@@ -57,7 +56,7 @@ command: |
       --enable-auto-tool-choice \
       --reasoning-parser deepseek_v4 \
       --compilation-config '{{"cudagraph_mode":"FULL_AND_PIECEWISE","custom_ops":["all"]}}' \
-      --speculative-config '{{"method":"dspark","num_speculative_tokens":5,"draft_sample_method":"greedy"}}' \
+      --speculative-config '{{"method":"dspark","num_speculative_tokens":2,"draft_sample_method":"greedy"}}' \
       --load-format instanttensor
 
 #--speculative-config '{{"method":"mtp","num_speculative_tokens":{num_speculative_tokens}}}' \
