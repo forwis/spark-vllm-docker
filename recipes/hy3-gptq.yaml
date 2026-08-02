@@ -47,6 +47,6 @@ command: |
       --load-format auto \
       --kv-cache-dtype fp8 \
       --enable-auto-tool-choice \
-      --tool-call-parser hy_v3  \
+      --tool-call-parser hy_v3 \
       --reasoning-parser hy_v3 \
       --speculative-config '{{"method":"mtp", "model":"AngelSlim/Hy3-MTP-TTT3", "num_speculative_tokens":3}}'
