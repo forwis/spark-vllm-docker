@@ -22,7 +22,7 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.90
+  gpu_memory_utilization: 0.85
   max_num_seqs: 8
   block_size: 256
   served_model_name: deepseek-v4-flash
