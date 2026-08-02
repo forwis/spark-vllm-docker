@@ -9,7 +9,7 @@ description: vLLM serving Hy3-GPTQ on a multi-node cluster
 model: AngelSlim/Hy3-GPTQ-Int4
 
 # Container image to use
-container: vllm-node
+container: vllm-node-custom
 
 # Can only be run in a cluster
 cluster_only: true
@@ -23,7 +23,6 @@ defaults:
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.90
-  max_model_len: 262144
   max_num_batched_tokens: 4096
   max_num_seqs: 8
 
@@ -42,11 +41,12 @@ command: |
       --gpu-memory-utilization {gpu_memory_utilization} \
       -tp {tensor_parallel} \
       --distributed-executor-backend ray \
-      --max-model-len {max_model_len} \
+      --max-model-len auto \
       --max-num-batched-tokens {max_num_batched_tokens} \
       --max-num-seqs {max_num_seqs} \
       --load-format auto \
       --kv-cache-dtype fp8 \
       --enable-auto-tool-choice \
       --tool-call-parser hy_v3  \
-      --reasoning-parser hy_v3
+      --reasoning-parser hy_v3 \
+      --speculative-config "{"method":"dspark", "model":"AngelSlim/Hy3-DFly-Block8-Think-High", "num_speculative_tokens":7}"
