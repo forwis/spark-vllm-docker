@@ -49,4 +49,4 @@ command: |
       --enable-auto-tool-choice \
       --tool-call-parser hy_v3  \
       --reasoning-parser hy_v3 \
-      --speculative-config "{"method":"dspark", "model":"AngelSlim/Hy3-DFly-Block8-Think-High", "num_speculative_tokens":7}"
+      --speculative-config '{{"method":"dspark", "model":"AngelSlim/Hy3-DFly-Block8-Think-High", "num_speculative_tokens":7}}'
