@@ -21,7 +21,7 @@ env:
   VLLM_FLOAT32_MATMUL_PRECISION: high
 
 defaults:
-  port: 8000
+  port: 54351
   host: 0.0.0.0
   tensor_parallel: 4
   gpu_memory_utilization: 0.85
