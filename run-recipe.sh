@@ -38,5 +38,10 @@ if ! $PYTHON -c "import yaml" 2>/dev/null; then
     fi
 fi
 
+# Pass VLLM_API_KEY through to the container so vllm serve uses it as --api-key
+if [[ -n "${VLLM_API_KEY:-}" ]]; then
+    set -- "$@" "-e" "VLLM_API_KEY=$VLLM_API_KEY"
+fi
+
 # Run the recipe script
 exec $PYTHON "$RECIPE_SCRIPT" "$@"
