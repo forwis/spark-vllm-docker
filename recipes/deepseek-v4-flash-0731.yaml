@@ -18,7 +18,7 @@ mods:
 #   - mods/drop-caches
 
 defaults:
-  port: 8000
+  port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.85
@@ -48,6 +48,7 @@ env:
 
 command: |
   vllm serve deepseek-ai/DeepSeek-V4-Flash-0731 \
+      --served-model-name deepseek-v4-flash \
       --host {host} \
       --port {port} \
       --trust-remote-code \

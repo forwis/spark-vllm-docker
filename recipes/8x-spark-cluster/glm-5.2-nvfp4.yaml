@@ -24,7 +24,7 @@ env:
   VLLM_B12X_MLA_SPEC_EXTEND_AS_DECODE: "1"
 
 defaults:
-  port: 8000
+  port: 54351
   host: 0.0.0.0
   tensor_parallel: 8
   pipeline_parallel: 1

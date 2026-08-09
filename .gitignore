@@ -19,3 +19,4 @@ benchmark-plots
 backup-wheels
 .codex
 wheels
+/.idea/*
