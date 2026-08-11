@@ -6,7 +6,7 @@ name: Motif-3-NVFP4
 description: vLLM serving Motif-3-NVFP4 on two Sparks
 
 # HuggingFace model to download (optional, for --download-model)
-model: stepfun-ai/Motif-3-NVFP4
+model: Motif-Technologies/Motif-3-NVFP4
 
 # Container image to use
 container: vllm-node-motif
@@ -30,7 +30,8 @@ env: {}
 
 # The vLLM serve command template
 command: |
-  vllm serve stepfun-ai/Motif-3-NVFP4 \
+  vllm serve Motif-Technologies/Motif-3-NVFP4 \
+      --served-model-name motif-3 \
       --trust-remote-code \
       --port {port} \
       --host {host} \
