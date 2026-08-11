@@ -40,7 +40,7 @@ command: |
       --distributed-executor-backend ray \
       --max-model-len auto \
       --quantization modelopt_nvfp4 \
-      --speculative-config '{"model": "Motif-Technologies/Motif-3-NVFP4", "num_speculative_tokens": 1}' \
+      --speculative-config '{{"model": "Motif-Technologies/Motif-3-NVFP4", "num_speculative_tokens": 1}}' \
       --enable-expert-parallel \
       --enable-auto-tool-choice \
       --tool-call-parser motif \
