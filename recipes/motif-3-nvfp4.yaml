@@ -24,6 +24,8 @@ defaults:
   tensor_parallel: 2
   gpu_memory_utilization: 0.90
   max_model_len: 262144
+  max_num_seqs: 8
+  max_num_batched_tokens: 4096
 
 # Environment variables
 env: {}
@@ -39,6 +41,8 @@ command: |
       -tp {tensor_parallel} \
       --distributed-executor-backend ray \
       --max-model-len auto \
+      --max-num-seqs {max_num_seqs} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
       --quantization modelopt_nvfp4 \
       --speculative-config '{{"model": "Motif-Technologies/Motif-3-NVFP4", "num_speculative_tokens": 1}}' \
       --enable-expert-parallel \
