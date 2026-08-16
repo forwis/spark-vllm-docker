@@ -1,0 +1,48 @@
+# Recipe: DeepSeek V4 Flash 0731
+# DeepSeek V4 Flash using the B12X-optimized serving stack on an SM121 cluster
+
+recipe_version: "1"
+name: DeepSeek-V4-Flash-0731
+description: vLLM serving deepseek-ai/DeepSeek-V4-Flash-0731 on a dual Sparks using B12X docker
+
+model: deepseek-ai/DeepSeek-V4-Flash-0731
+container: vllm-node-dsv4f
+
+build_args: []
+
+cluster_only: true
+
+mods: []
+
+defaults:
+  port: 54351
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.85
+  max_model_len: auto
+  block_size: 256
+  max_num_seqs: 8
+  max_num_batched_tokens: 8192
+
+env: []
+
+command: |
+  vllm serve deepseek-ai/DeepSeek-V4-Flash-0731 \
+      --served-model-name deepseek-v4-flash \
+      --host {host} \
+      --port {port} \
+      --trust-remote-code \
+      --tensor-parallel-size {tensor_parallel} \
+      --kv-cache-dtype fp8 \
+      --block-size {block_size} \
+      --max-model-len auto \
+      --max-num-seqs {max_num_seqs} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --enable-prefix-caching \
+      --enable-chunked-prefill \
+      --enable-auto-tool-choice \
+      --tool-call-parser deepseek_v4 \
+      --tokenizer-mode deepseek_v4 \
+      --reasoning-parser deepseek_v4 \
+      --speculative-config '{{"method":"dspark","num_speculative_tokens":5,"draft_sample_method":"probabilistic"}}'
