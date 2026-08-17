@@ -59,6 +59,41 @@ class FlashInferB12xExperts:
         )
 '''
 
+# Shape used by the jasl/codex-ds4 SM12x fork: a multiline membership tuple
+# that additionally supports GELU_TANH. The patch must preserve that full set
+# while adding the gated SWIGLUOAI_UNINTERLEAVE branch.
+FORK_EXPERT = '''
+from vllm.utils.flashinfer import (
+    flashinfer_convert_sf_to_mma_layout,
+    has_flashinfer_b12x_moe,
+)
+
+
+class FlashInferB12xExperts:
+    _ACTIVATION_MAP = {
+        MoEActivation.SILU: "silu",
+        MoEActivation.GELU_TANH: "gelu_tanh",
+        MoEActivation.RELU2_NO_MUL: "relu2",
+    }
+
+    def __init__(self, moe_config, quant_config):
+        activation = moe_config.activation
+        self._activation_str = self._ACTIVATION_MAP[activation]
+
+    @staticmethod
+    def _supports_activation(activation: MoEActivation) -> bool:
+        return activation in (
+            MoEActivation.SILU,
+            MoEActivation.GELU_TANH,
+            MoEActivation.RELU2_NO_MUL,
+        )
+
+    def _ensure_wrapper(self) -> None:
+        self._wrapper = B12xMoEWrapper(
+            activation=self._activation_str,
+        )
+'''
+
 ORACLE = '''
 from vllm.logger import init_logger
 from vllm.model_executor.layers.quantization.utils.quant_utils import (
@@ -102,6 +137,20 @@ class TargetedB12xPatchTests(unittest.TestCase):
     def test_unknown_expert_source_shape_fails(self):
         with self.assertRaises(PATCHER.PatchError):
             PATCHER.patch_expert("class FlashInferB12xExperts: pass\n")
+
+    def test_multiline_support_predicate_with_extra_activation(self):
+        expert = PATCHER.patch_expert(FORK_EXPERT)
+
+        self.assertIn("SWIGLUOAI_UNINTERLEAVE", expert)
+        self.assertIn("has_flashinfer_b12x_moe_activation()", expert)
+        self.assertIn("MoEActivation.GELU_TANH", expert)
+        self.assertIn(
+            "if activation in (MoEActivation.SILU, MoEActivation.GELU_TANH, "
+            "MoEActivation.RELU2_NO_MUL):",
+            expert,
+        )
+
+        self.assertEqual(PATCHER.patch_expert(expert), expert)
 
 
 if __name__ == "__main__":

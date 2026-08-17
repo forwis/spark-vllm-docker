@@ -11,6 +11,7 @@ on unknown source shapes instead of making a best-effort rewrite.
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -148,24 +149,42 @@ def patch_expert(text: str) -> str:
 
     support_check = "            and has_flashinfer_b12x_moe_activation()\n"
     if support_check not in text:
-        old_support = (
-            "    def _supports_activation(activation: MoEActivation) -> bool:\n"
-            "        return activation in ("
-            "MoEActivation.SILU, MoEActivation.RELU2_NO_MUL)\n"
+        # Upstream keeps the membership test on one line; some forks (e.g. the
+        # jasl/codex-ds4 SM12x tree) use a multiline tuple and may list extra
+        # activations such as GELU_TANH. Match either shape, preserve the full
+        # supported set, and add the gated SWIGLUOAI_UNINTERLEAVE branch.
+        predicate_re = re.compile(
+            r"    def _supports_activation\(activation: MoEActivation\) -> bool:\n"
+            r"        return activation in \((.*?)\)\n",
+            re.DOTALL,
         )
+        predicate_matches = list(predicate_re.finditer(text))
+        if len(predicate_matches) != 1:
+            raise PatchError(
+                "expected one B12x activation support predicate source anchor, "
+                f"found {len(predicate_matches)}; the vLLM source shape has changed"
+            )
+        members = re.findall(
+            r"MoEActivation\.([A-Z0-9_]+)", predicate_matches[0].group(1)
+        )
+        if not members:
+            raise PatchError(
+                "B12x activation support predicate lists no activations; "
+                "the vLLM source shape has changed"
+            )
         new_support = (
             "    def _supports_activation(activation: MoEActivation) -> bool:\n"
-            "        if activation in ("
-            "MoEActivation.SILU, MoEActivation.RELU2_NO_MUL):\n"
+            "        if activation in (MoEActivation."
+            + ", MoEActivation.".join(members)
+            + "):\n"
             "            return True\n"
             "        return (\n"
             "            activation == MoEActivation.SWIGLUOAI_UNINTERLEAVE\n"
             + support_check
             + "        )\n"
         )
-        text = replace_once(
-            text, old_support, new_support, "B12x activation support predicate"
-        )
+        match = predicate_matches[0]
+        text = text[:match.start()] + new_support + text[match.end():]
 
     if "        swiglu_kwargs: dict[str, float] = {}\n" not in text:
         wrapper_kwargs = """        swiglu_kwargs: dict[str, float] = {}
