@@ -6,7 +6,7 @@ name: DeepSeek-V4-Flash-0731
 description: vLLM serving deepseek-ai/DeepSeek-V4-Flash-0731 on a dual Sparks using B12X docker
 
 model: deepseek-ai/DeepSeek-V4-Flash-0731
-container: vllm-node-dsv4f
+container: vllm-node-dsv4f:v1
 
 build_args: []
 
@@ -45,6 +45,5 @@ command: |
       --tool-call-parser deepseek_v4 \
       --tokenizer-mode deepseek_v4 \
       --reasoning-parser deepseek_v4 \
-      --no-enable-flashinfer-autotune \
       --speculative-config '{{"method":"dspark","num_speculative_tokens":5,"draft_sample_method":"probabilistic"}}'
 
