@@ -47,4 +47,3 @@ command: |
       --reasoning-parser deepseek_v4 \
       --no-enable-flashinfer-autotune \
       --speculative-config '{{"method":"dspark","num_speculative_tokens":5,"draft_sample_method":"probabilistic"}}'
-

@@ -11,7 +11,6 @@ on unknown source shapes instead of making a best-effort rewrite.
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 
@@ -149,42 +148,55 @@ def patch_expert(text: str) -> str:
 
     support_check = "            and has_flashinfer_b12x_moe_activation()\n"
     if support_check not in text:
-        # Upstream keeps the membership test on one line; some forks (e.g. the
-        # jasl/codex-ds4 SM12x tree) use a multiline tuple and may list extra
-        # activations such as GELU_TANH. Match either shape, preserve the full
-        # supported set, and add the gated SWIGLUOAI_UNINTERLEAVE branch.
-        predicate_re = re.compile(
-            r"    def _supports_activation\(activation: MoEActivation\) -> bool:\n"
-            r"        return activation in \((.*?)\)\n",
-            re.DOTALL,
-        )
-        predicate_matches = list(predicate_re.finditer(text))
-        if len(predicate_matches) != 1:
-            raise PatchError(
-                "expected one B12x activation support predicate source anchor, "
-                f"found {len(predicate_matches)}; the vLLM source shape has changed"
-            )
-        members = re.findall(
-            r"MoEActivation\.([A-Z0-9_]+)", predicate_matches[0].group(1)
-        )
-        if not members:
-            raise PatchError(
-                "B12x activation support predicate lists no activations; "
-                "the vLLM source shape has changed"
-            )
-        new_support = (
+        legacy_support = (
             "    def _supports_activation(activation: MoEActivation) -> bool:\n"
-            "        if activation in (MoEActivation."
-            + ", MoEActivation.".join(members)
-            + "):\n"
+            "        return activation in ("
+            "MoEActivation.SILU, MoEActivation.RELU2_NO_MUL)\n"
+        )
+        patched_legacy_support = (
+            "    def _supports_activation(activation: MoEActivation) -> bool:\n"
+            "        if activation in ("
+            "MoEActivation.SILU, MoEActivation.RELU2_NO_MUL):\n"
             "            return True\n"
             "        return (\n"
             "            activation == MoEActivation.SWIGLUOAI_UNINTERLEAVE\n"
             + support_check
             + "        )\n"
         )
-        match = predicate_matches[0]
-        text = text[:match.start()] + new_support + text[match.end():]
+        gelu_support = (
+            "    def _supports_activation(activation: MoEActivation) -> bool:\n"
+            "        return activation in (\n"
+            "            MoEActivation.SILU,\n"
+            "            MoEActivation.GELU_TANH,\n"
+            "            MoEActivation.RELU2_NO_MUL,\n"
+            "        )\n"
+        )
+        patched_gelu_support = (
+            "    def _supports_activation(activation: MoEActivation) -> bool:\n"
+            "        if activation in (\n"
+            "            MoEActivation.SILU,\n"
+            "            MoEActivation.GELU_TANH,\n"
+            "            MoEActivation.RELU2_NO_MUL,\n"
+            "        ):\n"
+            "            return True\n"
+            "        return (\n"
+            "            activation == MoEActivation.SWIGLUOAI_UNINTERLEAVE\n"
+            + support_check
+            + "        )\n"
+        )
+        known_support_shapes = (
+            (legacy_support, patched_legacy_support),
+            (gelu_support, patched_gelu_support),
+        )
+        matches = [(old, new) for old, new in known_support_shapes if old in text]
+        match_count = sum(text.count(old) for old, _ in known_support_shapes)
+        if match_count != 1:
+            raise PatchError(
+                "expected one B12x activation support predicate source anchor, "
+                f"found {match_count}; the vLLM source shape has changed"
+            )
+        old_support, new_support = matches[0]
+        text = text.replace(old_support, new_support, 1)
 
     if "        swiglu_kwargs: dict[str, float] = {}\n" not in text:
         wrapper_kwargs = """        swiglu_kwargs: dict[str, float] = {}
