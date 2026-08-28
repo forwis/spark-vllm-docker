@@ -228,6 +228,13 @@ test_tf5_uses_prebuilt_tf5_tag() {
     pass "--tf5 pulls prebuilt image under vllm-node-tf5"
 }
 
+test_glm53_gb10_profile_forwards_runner_patch_mode() {
+    setup_fixture
+    run_build --glm53-gb10 || fail "--glm53-gb10 run failed"
+    assert_log_contains '^docker build -t vllm-node-glm .*--build-arg GLM53_GB10=1 '
+    pass "--glm53-gb10 forwards the GLM53 GB10 runtime patch build argument"
+}
+
 test_custom_tag_uses_prebuilt_custom_tag() {
     setup_fixture
     run_build -t custom-vllm || fail "custom tag run failed"
@@ -1264,6 +1271,7 @@ for path in files:
 
 test_default_uses_prebuilt
 test_tf5_uses_prebuilt_tf5_tag
+test_glm53_gb10_profile_forwards_runner_patch_mode
 test_custom_tag_uses_prebuilt_custom_tag
 test_default_gpu_arch_stays_prebuilt
 test_non_default_gpu_arch_uses_wheel_build
