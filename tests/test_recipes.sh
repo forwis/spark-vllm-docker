@@ -1344,6 +1344,112 @@ test_readme_glm_flash_cluster() {
     fi
 }
 
+# Test: Qwen3.8 Flash Next uses the qualified source build and TP2 profile
+test_qwen38_flash_next_nvfp4_profile() {
+    log_test "Qwen3.8 Flash Next NVFP4 qualified TP2 profile"
+
+    local output
+    local status
+    local vllm_cmd
+    local launch_cmd
+    local all_passed=true
+
+    output=$("$PROJECT_DIR/run-recipe.py" qwen3.8-flash-next-nvfp4 \
+        --config /dev/null --dry-run -n "10.0.0.1,10.0.0.2" 2>&1)
+    status=$?
+    vllm_cmd=$(extract_vllm_command "$output")
+    launch_cmd=$(extract_launch_cmd "$output")
+
+    if [[ $status -ne 0 ]]; then
+        all_passed=false
+    fi
+    for expected in \
+        "Inferact/Qwen3.8-Flash-Next-NVFP4" \
+        "--tensor-parallel-size 2" \
+        "--reasoning-parser qwen3" \
+        "--tool-call-parser qwen3_coder" \
+        "--enable-auto-tool-choice"; do
+        if ! echo "$vllm_cmd" | grep -qF -- "$expected"; then
+            all_passed=false
+            log_verbose "Missing Qwen command argument: $expected"
+        fi
+    done
+    if ! echo "$launch_cmd" | grep -qF -- "-t vllm-node-qwen"; then
+        all_passed=false
+        log_verbose "Qwen launch command does not use vllm-node-qwen"
+    fi
+    if ! echo "$output" | grep -qF -- \
+        "Build args: --rebuild-vllm --vllm-ref 06569a8696076eeae9558928b00f035ded8f8b60 --apply-vllm-pr 53896 --rebuild-flashinfer --flashinfer-ref v0.6.17"; then
+        all_passed=false
+        log_verbose "Qwen qualified source-build arguments are missing"
+    fi
+    if ! echo "$output" | grep -qF -- "Cluster only: Yes"; then
+        all_passed=false
+        log_verbose "Qwen recipe is not cluster-only"
+    fi
+
+    if [[ "$all_passed" == "true" ]]; then
+        log_pass "Qwen3.8 Flash Next uses the qualified TP2 profile"
+    else
+        log_fail "Qwen3.8 Flash Next qualified TP2 profile is incomplete"
+        log_verbose "$output"
+    fi
+}
+
+# Test: GLM-5.3 Flash uses the qualified GB10 image and safe native-MTP profile
+test_glm53_flash_nvfp4_profile() {
+    log_test "GLM-5.3 Flash NVFP4 qualified TP2 profile"
+
+    local output
+    local status
+    local vllm_cmd
+    local launch_cmd
+    local all_passed=true
+
+    output=$("$PROJECT_DIR/run-recipe.py" glm-5.3-flash-nvfp4 \
+        --config /dev/null --dry-run -n "10.0.0.1,10.0.0.2" 2>&1)
+    status=$?
+    vllm_cmd=$(extract_vllm_command "$output")
+    launch_cmd=$(extract_launch_cmd "$output")
+
+    if [[ $status -ne 0 ]]; then
+        all_passed=false
+    fi
+    for expected in \
+        "LibertAIDAI/GLM-5.3-Flash-NVFP4" \
+        "--tensor-parallel-size 2" \
+        "--block-size 2304" \
+        "--moe-backend marlin" \
+        "--kv-cache-dtype fp8_e4m3" \
+        "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":4}'" \
+        "--reasoning-parser glm45" \
+        "--tool-call-parser glm47"; do
+        if ! echo "$vllm_cmd" | grep -qF -- "$expected"; then
+            all_passed=false
+            log_verbose "Missing GLM command argument: $expected"
+        fi
+    done
+    if ! echo "$launch_cmd" | grep -qF -- "-t vllm-node-glm"; then
+        all_passed=false
+        log_verbose "GLM launch command does not use vllm-node-glm"
+    fi
+    if ! echo "$output" | grep -qF -- "Build args: --glm53-gb10"; then
+        all_passed=false
+        log_verbose "GLM qualified build argument is missing"
+    fi
+    if ! echo "$output" | grep -qF -- "Cluster only: Yes"; then
+        all_passed=false
+        log_verbose "GLM recipe is not cluster-only"
+    fi
+
+    if [[ "$all_passed" == "true" ]]; then
+        log_pass "GLM-5.3 Flash uses the qualified TP2 native-MTP profile"
+    else
+        log_fail "GLM-5.3 Flash qualified TP2 profile is incomplete"
+        log_verbose "$output"
+    fi
+}
+
 # ==============================================================================
 # Extra vLLM Arguments Tests (-- pass-through)
 # Tests for GitHub issue #30: ability to pass arbitrary vLLM arguments
@@ -1642,6 +1748,8 @@ main() {
     test_readme_gpt_oss_cluster
     test_readme_minimax_cluster
     test_readme_glm_flash_cluster
+    test_qwen38_flash_next_nvfp4_profile
+    test_glm53_flash_nvfp4_profile
     echo ""
     
     # launch-cluster.sh tests
