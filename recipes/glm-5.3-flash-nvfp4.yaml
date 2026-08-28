@@ -35,7 +35,6 @@ command: |
     --host {host} \
     --port {port} \
     --trust-remote-code \
-    --load-format instanttensor \
     --tensor-parallel-size {tensor_parallel} \
     --gpu-memory-utilization {gpu_memory_utilization} \
     --max-model-len {max_model_len} \

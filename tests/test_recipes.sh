@@ -1429,6 +1429,10 @@ test_glm53_flash_nvfp4_profile() {
             log_verbose "Missing GLM command argument: $expected"
         fi
     done
+    if echo "$vllm_cmd" | grep -qF -- "--load-format"; then
+        all_passed=false
+        log_verbose "GLM command must use vLLM's default loader; explicit load formats are unsafe for this TP2 profile"
+    fi
     if ! echo "$launch_cmd" | grep -qF -- "-t vllm-node-glm"; then
         all_passed=false
         log_verbose "GLM launch command does not use vllm-node-glm"
