@@ -42,6 +42,7 @@ setup_fixture() {
     FAKE_BIN_DIR="$CASE_DIR/bin"
     TEST_LOG="$CASE_DIR/commands.log"
     OUTPUT_LOG="$CASE_DIR/output.log"
+    METADATA_LOG="$CASE_DIR/build-metadata.yaml"
 
     mkdir -p "$FIXTURE_DIR" "$FAKE_BIN_DIR"
     cp "$PROJECT_DIR/build-and-copy.sh" "$FIXTURE_DIR/"
@@ -70,6 +71,9 @@ setup_fixture() {
 set -euo pipefail
 echo "docker $*" >> "$TEST_LOG"
 if [ "${1:-}" = "build" ]; then
+    if [ -f ./build-metadata.yaml ]; then
+        cp ./build-metadata.yaml "$METADATA_LOG"
+    fi
     (
         target=""
         output=""
@@ -171,7 +175,8 @@ CURL
 run_build() {
     (
         cd "$FIXTURE_DIR"
-        PATH="$FAKE_BIN_DIR:$PATH" TEST_LOG="$TEST_LOG" ./build-and-copy.sh --config "$FIXTURE_DIR/test.env" "$@"
+        PATH="$FAKE_BIN_DIR:$PATH" TEST_LOG="$TEST_LOG" METADATA_LOG="$METADATA_LOG" \
+            ./build-and-copy.sh --config "$FIXTURE_DIR/test.env" "$@"
     ) > "$OUTPUT_LOG" 2>&1
 }
 
@@ -210,6 +215,20 @@ assert_output_contains() {
     fi
 }
 
+assert_metadata_contains() {
+    local pattern="$1"
+    if [ ! -f "$METADATA_LOG" ] || ! grep -Eq "$pattern" "$METADATA_LOG"; then
+        fail "Expected generated build metadata to match: $pattern"
+    fi
+}
+
+assert_metadata_not_contains() {
+    local pattern="$1"
+    if [ -f "$METADATA_LOG" ] && grep -Eq "$pattern" "$METADATA_LOG"; then
+        fail "Expected generated build metadata not to match: $pattern"
+    fi
+}
+
 test_default_uses_prebuilt() {
     setup_fixture
     run_build || fail "default run failed"
@@ -235,6 +254,11 @@ test_glm53_gb10_profile_forwards_runner_patch_mode() {
     assert_log_not_contains '^docker build --target flashinfer-export '
     assert_log_contains '^docker build --target vllm-export .*--build-arg VLLM_REF=06569a8696076eeae9558928b00f035ded8f8b60 .*--build-arg VLLM_PRS=53906'
     assert_log_contains '^docker build -t vllm-node-glm .*--build-arg GLM53_GB10=1 '
+    assert_metadata_contains '^flashinfer_commit: not-applicable$'
+    assert_metadata_contains '^flashinfer_version: "0\.6\.18\.dev20260819"$'
+    assert_metadata_contains '^flashinfer_source: "https://flashinfer\.ai/whl/nightly/"$'
+    assert_metadata_contains '^  cutlass_dsl_version: "4\.6\.2"$'
+    assert_metadata_not_contains '^  cutlass_dsl_version: "4\.7\.0"$'
     pass "--glm53-gb10 builds the qualified GLM53 GB10 runner profile"
 }
 

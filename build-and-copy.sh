@@ -38,6 +38,9 @@ EXP_B12X_VLLM_REF="dev/infernal-invocation"
 GLM53_GB10=false
 GLM53_GB10_VLLM_REF="06569a8696076eeae9558928b00f035ded8f8b60"
 GLM53_GB10_VLLM_PR="53906"
+GLM53_GB10_FLASHINFER_VERSION="0.6.18.dev20260819"
+GLM53_GB10_FLASHINFER_SOURCE="https://flashinfer.ai/whl/nightly/"
+GLM53_GB10_CUTLASS_DSL_VERSION="4.6.2"
 B12X_PACKAGE_REPO="https://github.com/lukealonso/b12x.git"
 B12X_PACKAGE_REF="master"
 EXP_B12X_TORCH_VERSION="2.13.0"
@@ -121,6 +124,8 @@ generate_build_metadata() {
     local b12x_repo="${13}"
     local b12x_ref="${14}"
     local cutlass_dsl_version="${15}"
+    local flashinfer_version="${16:-unknown}"
+    local flashinfer_source="${17:-unknown}"
 
     local base_image
     base_image=$(grep -m1 '^FROM .* AS runner' "$dockerfile" | awk '{print $2}')
@@ -131,6 +136,8 @@ build_script_commit: $(git rev-parse HEAD 2>/dev/null || echo "unknown")
 vllm_version: ${vllm_version:-unknown}
 vllm_commit: ${vllm_commit:-unknown}
 flashinfer_commit: ${flashinfer_commit:-unknown}
+flashinfer_version: "${flashinfer_version}"
+flashinfer_source: "${flashinfer_source}"
 gpu_arch: ${GPU_ARCH_LIST}
 base_image: ${base_image:-unknown}
 build_args:
@@ -1351,10 +1358,21 @@ if [ "$NO_BUILD" = false ]; then
         [ -f "$VLLM_WHEELS_DIR/.vllm-commit" ] && VLLM_COMMIT=$(cat "$VLLM_WHEELS_DIR/.vllm-commit")
         FLASHINFER_COMMIT=""
         [ -f "$FLASHINFER_WHEELS_DIR/.flashinfer-commit" ] && FLASHINFER_COMMIT=$(cat "$FLASHINFER_WHEELS_DIR/.flashinfer-commit")
-        generate_build_metadata Dockerfile "$VLLM_VERSION" "$VLLM_COMMIT" "$FLASHINFER_COMMIT" \
+        FLASHINFER_METADATA_COMMIT="$FLASHINFER_COMMIT"
+        FLASHINFER_METADATA_VERSION="unknown"
+        FLASHINFER_METADATA_SOURCE="wheel-cache:$FLASHINFER_PROFILE"
+        CUTLASS_DSL_METADATA_VERSION="$CUTLASS_DSL_VERSION"
+        if [ "$GLM53_GB10" = true ]; then
+            FLASHINFER_METADATA_COMMIT="not-applicable"
+            FLASHINFER_METADATA_VERSION="$GLM53_GB10_FLASHINFER_VERSION"
+            FLASHINFER_METADATA_SOURCE="$GLM53_GB10_FLASHINFER_SOURCE"
+            CUTLASS_DSL_METADATA_VERSION="$GLM53_GB10_CUTLASS_DSL_VERSION"
+        fi
+        generate_build_metadata Dockerfile "$VLLM_VERSION" "$VLLM_COMMIT" "$FLASHINFER_METADATA_COMMIT" \
             "$VLLM_REF" "true" "false" "$VLLM_PRS" "$VLLM_REPO" "$TORCH_VERSION" \
             "${TORCHVISION_VERSION:-resolver-selected}" "${TORCHAUDIO_VERSION:-resolver-selected}" \
-            "${B12X_REPO:-disabled}" "${B12X_REF:-disabled}" "$CUTLASS_DSL_VERSION"
+            "${B12X_REPO:-disabled}" "${B12X_REF:-disabled}" "$CUTLASS_DSL_METADATA_VERSION" \
+            "$FLASHINFER_METADATA_VERSION" "$FLASHINFER_METADATA_SOURCE"
 
         RUNNER_CMD=("docker" "build"
             "-t" "$IMAGE_TAG"
