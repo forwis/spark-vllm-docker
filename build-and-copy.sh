@@ -35,6 +35,9 @@ VLLM_SOURCE_CONTEXT=""
 EXP_B12X=false
 EXP_B12X_VLLM_REPO="https://github.com/local-inference-lab/vllm"
 EXP_B12X_VLLM_REF="dev/infernal-invocation"
+GLM53_GB10=false
+GLM53_GB10_VLLM_REF="06569a8696076eeae9558928b00f035ded8f8b60"
+GLM53_GB10_VLLM_PR="53906"
 B12X_PACKAGE_REPO="https://github.com/lukealonso/b12x.git"
 B12X_PACKAGE_REF="master"
 EXP_B12X_TORCH_VERSION="2.13.0"
@@ -598,7 +601,7 @@ promote_wheel_set() {
 # Help function
 usage() {
     echo "Usage: $0 [OPTIONS]"
-    echo "  -t, --tag <tag>               : Local image tag (default: 'vllm-node'; preset tags: 'vllm-node-tf5', 'vllm-node-mxfp4', or 'vllm-node-b12x')"
+    echo "  -t, --tag <tag>               : Local image tag (default: 'vllm-node'; preset tags include 'vllm-node-glm' and 'vllm-node-b12x')"
     echo "  --use-wheels                  : Build only the runner from precompiled wheels; never implicitly build source."
     echo "  --gpu-arch <arch>             : GPU architecture for NCCL, wheel, and source builds (default: '${DEFAULT_GPU_ARCH_LIST}')"
     echo "  --rebuild-flashinfer          : Force rebuild of FlashInfer wheels (ignore cached wheels)"
@@ -621,6 +624,7 @@ usage() {
     echo "  --tf5                         : Deprecated compatibility flag; tag defaults to 'vllm-node-tf5' (aliases: --pre-tf, --pre-transformers)"
     echo "  --exp-mxfp4, --experimental-mxfp4 : Build with experimental native MXFP4 support"
     echo "  --exp-b12x, --experimental-b12x   : Select B12X; pulls its prebuilt image unless a local wheel/image build is requested"
+    echo "  --glm53-gb10                 : Build the qualified GLM-5.3 GB10 vLLM and runner profile"
     echo "  --apply-vllm-pr <pr-num>      : Apply a specific PR patch to vLLM source. Can be specified multiple times."
     echo "  --apply-preset-vllm-prs       : Apply preset vLLM PRs even with --vllm-repo, --vllm-ref, or --apply-vllm-pr."
     echo "  --apply-flashinfer-pr <pr-num>: Apply a specific PR patch to FlashInfer source. Can be specified multiple times."
@@ -716,6 +720,7 @@ while [[ "$#" -gt 0 ]]; do
         --tf5|--pre-tf|--pre-transformers) PRE_TRANSFORMERS=true ;;
         --exp-mxfp4|--experimental-mxfp4) EXP_MXFP4=true ;;
         --exp-b12x|--experimental-b12x) EXP_B12X=true ;;
+        --glm53-gb10) GLM53_GB10=true ;;
         --apply-vllm-pr)
             if [ -n "$2" ] && [[ "$2" != -* ]]; then
                if [ -n "$VLLM_PRS" ]; then
@@ -762,6 +767,39 @@ while [[ "$#" -gt 0 ]]; do
     esac
     shift
 done
+
+# The GLM-5.3 GB10 profile owns the exact vLLM source and runner dependency
+# inputs qualified by its vendored runtime patches. FlashInfer is replaced by
+# pinned nightly wheels in the runner stage, so source-build overrides are not
+# accepted here.
+if [ "$GLM53_GB10" = true ]; then
+    if [ "$EXP_MXFP4" = true ]; then echo "Error: --glm53-gb10 is incompatible with --exp-mxfp4"; exit 1; fi
+    if [ "$EXP_B12X" = true ]; then echo "Error: --glm53-gb10 is incompatible with --exp-b12x"; exit 1; fi
+    if [ "$USE_WHEELS" = true ]; then echo "Error: --glm53-gb10 is incompatible with --use-wheels because its pinned vLLM source must be compiled"; exit 1; fi
+    if [ "$VLLM_REPO_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --vllm-repo"; exit 1; fi
+    if [ "$VLLM_SOURCE_DIR_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --vllm-source-dir"; exit 1; fi
+    if [ "$VLLM_REF_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --vllm-ref"; exit 1; fi
+    if [ -n "$VLLM_PRS" ]; then echo "Error: --glm53-gb10 is incompatible with --apply-vllm-pr"; exit 1; fi
+    if [ "$APPLY_PRESET_VLLM_PRS" = true ]; then echo "Error: --glm53-gb10 is incompatible with --apply-preset-vllm-prs"; exit 1; fi
+    if [ "$FLASHINFER_REF_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --flashinfer-ref"; exit 1; fi
+    if [ -n "$FLASHINFER_PRS" ]; then echo "Error: --glm53-gb10 is incompatible with --apply-flashinfer-pr"; exit 1; fi
+    if [ "$REBUILD_FLASHINFER" = true ]; then echo "Error: --glm53-gb10 is incompatible with --rebuild-flashinfer"; exit 1; fi
+    if [ "$FORCE_FLASHINFER_DOWNLOAD" = true ]; then echo "Error: --glm53-gb10 is incompatible with --force-flashinfer-download"; exit 1; fi
+    if [ "$FORCE_VLLM_DOWNLOAD" = true ]; then echo "Error: --glm53-gb10 is incompatible with --force-vllm-download"; exit 1; fi
+    if [ "$TORCH_VERSION_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --torch-version"; exit 1; fi
+    if [ "$TORCHVISION_VERSION_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --torchvision-version"; exit 1; fi
+    if [ "$TORCHAUDIO_VERSION_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --torchaudio-version"; exit 1; fi
+    if [ "$PRE_TRANSFORMERS" = true ]; then echo "Error: --glm53-gb10 is incompatible with --tf5"; exit 1; fi
+    if [ "$GPU_ARCH_SET" = true ] && [ "$GPU_ARCH_LIST" != "$DEFAULT_GPU_ARCH_LIST" ]; then
+        echo "Error: --glm53-gb10 requires GPU architecture $DEFAULT_GPU_ARCH_LIST"
+        exit 1
+    fi
+
+    VLLM_REF="$GLM53_GB10_VLLM_REF"
+    VLLM_REF_SET=true
+    VLLM_PRS="$GLM53_GB10_VLLM_PR"
+    REBUILD_VLLM=true
+fi
 
 # The B12X preset uses the standard Dockerfile and source-build path, but owns
 # the fork/ref and Torch-family versions needed by that integration.
@@ -817,6 +855,8 @@ if [ "$IMAGE_TAG_SET" = false ]; then
         IMAGE_TAG="vllm-node-mxfp4"
     elif [ "$EXP_B12X" = true ]; then
         IMAGE_TAG="vllm-node-b12x"
+    elif [ "$GLM53_GB10" = true ]; then
+        IMAGE_TAG="vllm-node-glm"
     fi
 fi
 
@@ -1326,6 +1366,10 @@ if [ "$NO_BUILD" = false ]; then
             RUNNER_CMD+=("--build-arg" "B12X_REPO=$B12X_REPO")
             RUNNER_CMD+=("--build-arg" "B12X_REF=$B12X_REF")
             RUNNER_CMD+=("--build-arg" "B12X_CACHEBUST=$B12X_CACHEBUST")
+        fi
+
+        if [ "$GLM53_GB10" = true ]; then
+            RUNNER_CMD+=("--build-arg" "GLM53_GB10=1")
         fi
 
         RUNNER_CMD+=(".")

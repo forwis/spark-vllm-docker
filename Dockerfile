@@ -662,6 +662,7 @@ ARG CUTLASS_DSL_VERSION
 ARG B12X_REPO
 ARG B12X_REF
 ARG B12X_CACHEBUST
+ARG GLM53_GB10=0
 
 # Transferring build settings from build image because of ptxas/jit compilation during vLLM startup
 # Build parallemism
@@ -794,6 +795,29 @@ RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
         rm -rf /tmp/b12x-source; \
     else \
         echo "B12X source build not requested; skipping."; \
+    fi
+
+# The GLM-5.3 GB10 runtime patches are qualified against this exact
+# FlashInfer nightly. Replace the selected wheel profile only for this build
+# mode, restore the dependency versions disturbed by that install, and abort
+# if any vendored exact-match patch no longer applies.
+COPY mods/glm53-gb10 /opt/spark-vllm/mods/glm53-gb10
+RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
+    if [ "$GLM53_GB10" = "1" ]; then \
+        uv pip install --reinstall \
+            "flashinfer-python==0.6.18.dev20260819" \
+            "flashinfer-cubin==0.6.18.dev20260819" \
+            --index-url https://flashinfer.ai/whl/nightly/ && \
+        uv pip uninstall flashinfer-jit-cache && \
+        uv pip install --reinstall --no-deps \
+            "nvidia-nccl-cu13==2.30.7" \
+            "nvidia-cutlass-dsl==4.6.2" && \
+        /opt/spark-vllm/mods/glm53-gb10/apply.sh; \
+    elif [ "$GLM53_GB10" = "0" ]; then \
+        echo "GLM-5.3 GB10 runner patch mode not requested; skipping."; \
+    else \
+        echo "GLM53_GB10 must be 0 or 1 (got '$GLM53_GB10')." >&2; \
+        exit 1; \
     fi
 
 # Fix NCCL

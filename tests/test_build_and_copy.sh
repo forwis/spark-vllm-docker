@@ -231,8 +231,28 @@ test_tf5_uses_prebuilt_tf5_tag() {
 test_glm53_gb10_profile_forwards_runner_patch_mode() {
     setup_fixture
     run_build --glm53-gb10 || fail "--glm53-gb10 run failed"
+    assert_log_not_contains '^docker pull '
+    assert_log_not_contains '^docker build --target flashinfer-export '
+    assert_log_contains '^docker build --target vllm-export .*--build-arg VLLM_REF=06569a8696076eeae9558928b00f035ded8f8b60 .*--build-arg VLLM_PRS=53906'
     assert_log_contains '^docker build -t vllm-node-glm .*--build-arg GLM53_GB10=1 '
-    pass "--glm53-gb10 forwards the GLM53 GB10 runtime patch build argument"
+    pass "--glm53-gb10 builds the qualified GLM53 GB10 runner profile"
+}
+
+test_glm53_gb10_rejects_qualified_profile_overrides() {
+    setup_fixture
+    if run_build --glm53-gb10 --vllm-ref main; then
+        fail "--glm53-gb10 unexpectedly accepted --vllm-ref"
+    fi
+    assert_log_not_contains '^docker (build|pull) '
+    assert_output_contains 'Error: --glm53-gb10 is incompatible with --vllm-ref'
+
+    setup_fixture
+    if run_build --glm53-gb10 --rebuild-flashinfer; then
+        fail "--glm53-gb10 unexpectedly accepted --rebuild-flashinfer"
+    fi
+    assert_log_not_contains '^docker (build|pull) '
+    assert_output_contains 'Error: --glm53-gb10 is incompatible with --rebuild-flashinfer'
+    pass "--glm53-gb10 rejects overrides to its qualified build inputs"
 }
 
 test_custom_tag_uses_prebuilt_custom_tag() {
@@ -1067,6 +1087,34 @@ test_dockerfile_uses_configurable_torch_versions() {
     pass "Dockerfile uses configurable Torch package versions in build and runner stages"
 }
 
+test_dockerfile_installs_qualified_glm53_runner_stack() {
+    local previous_line=0
+    local current_line
+    local expected
+
+    for expected in \
+        'ARG GLM53_GB10=0' \
+        'COPY mods/glm53-gb10 /opt/spark-vllm/mods/glm53-gb10' \
+        'if [ "$GLM53_GB10" = "1" ]; then' \
+        '"flashinfer-python==0.6.18.dev20260819"' \
+        '"flashinfer-cubin==0.6.18.dev20260819"' \
+        '--index-url https://flashinfer.ai/whl/nightly/' \
+        'uv pip uninstall flashinfer-jit-cache' \
+        '"nvidia-nccl-cu13==2.30.7"' \
+        '"nvidia-cutlass-dsl==4.6.2"' \
+        '/opt/spark-vllm/mods/glm53-gb10/apply.sh'; do
+        current_line=$(grep -Fn -- "$expected" "$PROJECT_DIR/Dockerfile" | head -1 | cut -d: -f1 || true)
+        if [ -z "$current_line" ]; then
+            fail "Dockerfile is missing qualified GLM53 runner step: $expected"
+        fi
+        if [ "$current_line" -le "$previous_line" ]; then
+            fail "Dockerfile GLM53 runner steps are out of order at: $expected"
+        fi
+        previous_line="$current_line"
+    done
+    pass "Dockerfile installs and patches the qualified GLM53 runner stack"
+}
+
 test_dockerfile_pins_cutlass_dsl_47_everywhere() {
     for expected in \
         'ARG CUTLASS_DSL_VERSION=4.7.0' \
@@ -1272,6 +1320,7 @@ for path in files:
 test_default_uses_prebuilt
 test_tf5_uses_prebuilt_tf5_tag
 test_glm53_gb10_profile_forwards_runner_patch_mode
+test_glm53_gb10_rejects_qualified_profile_overrides
 test_custom_tag_uses_prebuilt_custom_tag
 test_default_gpu_arch_stays_prebuilt
 test_non_default_gpu_arch_uses_wheel_build
@@ -1327,6 +1376,7 @@ test_local_inference_lab_b12x_requires_torch_212
 test_dockerfile_custom_repo_bypasses_shared_cache
 test_dockerfile_accepts_local_vllm_context
 test_dockerfile_uses_configurable_torch_versions
+test_dockerfile_installs_qualified_glm53_runner_stack
 test_dockerfile_pins_cutlass_dsl_47_everywhere
 test_dockerfile_uses_profiled_named_wheel_contexts
 test_dockerfile_builds_and_verifies_b12x_source
