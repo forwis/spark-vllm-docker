@@ -1139,6 +1139,35 @@ test_dockerfile_installs_qualified_glm53_runner_stack() {
     pass "Dockerfile installs and patches the qualified GLM53 runner stack"
 }
 
+test_glm53_patch_normalizes_fp8_kv_storage_dtype_for_flashinfer() {
+    local patch="$PROJECT_DIR/mods/glm53-gb10/apply.sh"
+
+    for expected in \
+        'kv_dtype = (' \
+        'torch.float8_e4m3fn' \
+        'if kv_cache_spec.dtype == torch.uint8' \
+        'kv_dtype,'; do
+        if ! grep -Fq -- "$expected" "$patch"; then
+            fail "GLM53 patch is missing FP8 KV dtype normalization: $expected"
+        fi
+    done
+    pass "GLM53 patch normalizes uint8 FP8 KV storage for FlashInfer"
+}
+
+test_glm53_patch_defers_mixed_prefill_while_decoding() {
+    local patch="$PROJECT_DIR/mods/glm53-gb10/apply.sh"
+    for expected in \
+        'GLM53_MIXED_PREFILL_CHUNK' \
+        '_glm53_mixed_prefill_policy' \
+        'step_skipped_waiting.prepend_request(request)' \
+        'GLM mixed-prefill decode floor applied'; do
+        if ! grep -Fq -- "$expected" "$patch"; then
+            fail "GLM53 patch is missing mixed-prefill protection: $expected"
+        fi
+    done
+    pass "GLM53 patch defers mixed prefill while decoding"
+}
+
 test_dockerfile_pins_cutlass_dsl_47_everywhere() {
     for expected in \
         'ARG CUTLASS_DSL_VERSION=4.7.0' \
@@ -1401,6 +1430,8 @@ test_dockerfile_custom_repo_bypasses_shared_cache
 test_dockerfile_accepts_local_vllm_context
 test_dockerfile_uses_configurable_torch_versions
 test_dockerfile_installs_qualified_glm53_runner_stack
+test_glm53_patch_normalizes_fp8_kv_storage_dtype_for_flashinfer
+test_glm53_patch_defers_mixed_prefill_while_decoding
 test_dockerfile_pins_cutlass_dsl_47_everywhere
 test_dockerfile_uses_profiled_named_wheel_contexts
 test_dockerfile_builds_and_verifies_b12x_source

@@ -1410,8 +1410,9 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
     fi
     for expected in \
-        "LibertAIDAI/GLM-5.3-Flash-NVFP4" \
+        "/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/snapshots/" \
         "--tensor-parallel-size 2" \
+        "--gpu-memory-utilization 0.89" \
         "--max-model-len 200000" \
         "--max-num-seqs 5" \
         "--max-num-batched-tokens 2048" \
@@ -1437,6 +1438,18 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
         log_verbose "GLM launch command does not use vllm-node-glm"
     fi
+    for expected in \
+        "-e NCCL_CUMEM_ENABLE=0" \
+        "-e NCCL_NVLS_ENABLE=0" \
+        "-e NCCL_CROSS_NIC=0" \
+        "-e NCCL_IB_MERGE_NICS=0" \
+        "-e TORCH_NCCL_ASYNC_ERROR_HANDLING=1" \
+        "-e VLLM_ENGINE_READY_TIMEOUT_S=3600"; do
+        if ! echo "$launch_cmd" | grep -qF -- "$expected"; then
+            all_passed=false
+            log_verbose "Missing GLM cluster environment: $expected"
+        fi
+    done
     if ! echo "$output" | grep -qF -- "Build args: --glm53-gb10"; then
         all_passed=false
         log_verbose "GLM qualified build argument is missing"

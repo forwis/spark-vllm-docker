@@ -17,6 +17,16 @@ cluster_only: true
 
 env:
   TZ: Asia/Seoul
+  # Required by the validated TP2 GB10/RoCE profile.  In particular, async
+  # handling keeps PyTorch's NCCL watchdog from terminating a local worker
+  # without surfacing the underlying fabric error.
+  NCCL_CUMEM_ENABLE: "0"
+  NCCL_NVLS_ENABLE: "0"
+  NCCL_CROSS_NIC: "0"
+  NCCL_IB_MERGE_NICS: "0"
+  TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
+  VLLM_ENGINE_READY_TIMEOUT_S: "3600"
+  GLM53_MIXED_PREFILL_CHUNK: skip
 
 build_args:
   - --glm53-gb10
@@ -25,7 +35,7 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.90
+  gpu_memory_utilization: 0.89
   max_model_len: 200000
   max_num_seqs: 5
   max_num_batched_tokens: 2048
@@ -33,7 +43,8 @@ defaults:
   num_speculative_tokens: 5
 
 command: |
-  vllm serve LibertAIDAI/GLM-5.3-Flash-NVFP4 \
+  glm53_model_snapshot="$(cat /root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/refs/main)"
+  vllm serve "/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/snapshots/$glm53_model_snapshot" \
     --served-model-name glm-5.3-flash \
     --host {host} \
     --port {port} \
