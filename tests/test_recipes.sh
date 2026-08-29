@@ -1390,7 +1390,7 @@ test_qwen38_flash_next_nvfp4_profile() {
     fi
 }
 
-# Test: GLM-5.3 Flash uses the qualified GB10 image and safe native-MTP profile
+# Test: GLM-5.3 Flash uses the qualified GB10 image and validated native-MTP profile
 test_glm53_flash_nvfp4_profile() {
     log_test "GLM-5.3 Flash NVFP4 qualified TP2 profile"
 
@@ -1412,10 +1412,16 @@ test_glm53_flash_nvfp4_profile() {
     for expected in \
         "LibertAIDAI/GLM-5.3-Flash-NVFP4" \
         "--tensor-parallel-size 2" \
+        "--max-model-len 200000" \
+        "--max-num-seqs 5" \
+        "--max-num-batched-tokens 2048" \
         "--block-size 2304" \
         "--moe-backend marlin" \
         "--kv-cache-dtype fp8_e4m3" \
-        "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":4}'" \
+        "--enforce-eager" \
+        "--limit-mm-per-prompt '{\"image\":8,\"video\":1}'" \
+        "--mm-processor-cache-type lru" \
+        "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":5}'" \
         "--reasoning-parser glm45" \
         "--tool-call-parser glm47"; do
         if ! echo "$vllm_cmd" | grep -qF -- "$expected"; then

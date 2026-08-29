@@ -9,7 +9,7 @@
 
 recipe_version: "1"
 name: GLM-5.3-Flash-NVFP4 (TP=2)
-description: Qualified GB10 TP2 profile with FP8 KV cache and native MTP
+description: Validated GB10 TP2 profile with FP8 KV cache and native MTP
 
 model: LibertAIDAI/GLM-5.3-Flash-NVFP4
 container: vllm-node-glm
@@ -26,10 +26,11 @@ defaults:
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.90
-  max_model_len: 262144
-  max_num_seqs: 8
-  max_num_batched_tokens: 8192
-  num_speculative_tokens: 3
+  max_model_len: 200000
+  max_num_seqs: 5
+  max_num_batched_tokens: 2048
+  block_size: 2304
+  num_speculative_tokens: 5
 
 command: |
   vllm serve LibertAIDAI/GLM-5.3-Flash-NVFP4 \
@@ -39,12 +40,15 @@ command: |
     --trust-remote-code \
     --tensor-parallel-size {tensor_parallel} \
     --gpu-memory-utilization {gpu_memory_utilization} \
-    --max-model-len auto \
+    --max-model-len {max_model_len} \
     --max-num-seqs {max_num_seqs} \
     --max-num-batched-tokens {max_num_batched_tokens} \
     --block-size {block_size} \
     --moe-backend marlin \
     --kv-cache-dtype fp8_e4m3 \
+    --enforce-eager \
+    --limit-mm-per-prompt '{{"image":8,"video":1}}' \
+    --mm-processor-cache-type lru \
     --speculative-config '{{"method":"mtp","num_speculative_tokens":{num_speculative_tokens}}}' \
     --enable-auto-tool-choice \
     --tool-call-parser glm47 \
