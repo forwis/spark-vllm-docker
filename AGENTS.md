@@ -33,3 +33,16 @@ container launch is operation.
   authorize real deployments. Perform both only when the user requests both.
 - Do not prune, overwrite, stop, remove, or force-refresh existing resources
   unless the requested task requires it.
+
+## Qwen and GLM-5.3 GB10 Profiles
+
+- `vllm-node-qwen` is the custom Qwen3.8 Flash Next image; preserve its pinned
+  vLLM ref, PR 53896, and FlashInfer v0.6.17 inputs unless a task explicitly
+  changes that qualified combination.
+- `--glm53-gb10` builds `vllm-node-glm` for GLM-5.3 on two GB10 systems. Its
+  vendored patch set and pinned FlashInfer nightly/Cutlass/NCCL dependencies
+  are a single qualified profile; do not mix it with manual vLLM, FlashInfer,
+  Torch, GPU-architecture, or experimental-profile overrides.
+- The GLM recipe is cluster-only and requires operator-managed filesystem-cache
+  reclamation on each host before launch. Do not add privileged cache-clearing
+  commands to recipes, containers, or ordinary development validation.

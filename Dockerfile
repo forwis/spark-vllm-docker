@@ -804,7 +804,7 @@ RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
 COPY mods/glm53-gb10 /opt/spark-vllm/mods/glm53-gb10
 RUN --mount=type=cache,id=uv-cache,target=/root/.cache/uv \
     if [ "$GLM53_GB10" = "1" ]; then \
-        uv pip install --reinstall \
+        uv pip install --reinstall --no-deps \
             "flashinfer-python==0.6.18.dev20260819" \
             "flashinfer-cubin==0.6.18.dev20260819" \
             --index-url https://flashinfer.ai/whl/nightly/ && \
