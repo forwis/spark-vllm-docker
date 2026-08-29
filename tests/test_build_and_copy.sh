@@ -1168,6 +1168,21 @@ test_glm53_patch_defers_mixed_prefill_while_decoding() {
     pass "GLM53 patch defers mixed prefill while decoding"
 }
 
+test_glm53_patch_excludes_unsafe_mtp_mixed_warmup() {
+    local patch="$PROJECT_DIR/mods/glm53-gb10/apply.sh"
+
+    for expected in \
+        'v1/worker/gpu/warmup.py' \
+        'model_type == "glm5next"' \
+        'not (is_glm5_mtp and use_spec_decode)' \
+        'GLM MTP mixed warmup excluded on GB10'; do
+        if ! grep -Fq -- "$expected" "$patch"; then
+            fail "GLM53 patch is missing MTP mixed-warmup exclusion: $expected"
+        fi
+    done
+    pass "GLM53 patch excludes unsafe MTP mixed warmup on GB10"
+}
+
 test_dockerfile_pins_cutlass_dsl_47_everywhere() {
     for expected in \
         'ARG CUTLASS_DSL_VERSION=4.7.0' \
@@ -1432,6 +1447,7 @@ test_dockerfile_uses_configurable_torch_versions
 test_dockerfile_installs_qualified_glm53_runner_stack
 test_glm53_patch_normalizes_fp8_kv_storage_dtype_for_flashinfer
 test_glm53_patch_defers_mixed_prefill_while_decoding
+test_glm53_patch_excludes_unsafe_mtp_mixed_warmup
 test_dockerfile_pins_cutlass_dsl_47_everywhere
 test_dockerfile_uses_profiled_named_wheel_contexts
 test_dockerfile_builds_and_verifies_b12x_source

@@ -229,5 +229,41 @@ if mark not in s:
 print("GLM mixed-prefill decode floor applied")
 PY
 
+# vLLM's post-KV-cache warmup constructs a synthetic mixed MTP/non-MTP
+# decode batch.  GLM's KDA path reclassifies its non-MTP member as prefill;
+# on GB10 this is the same unsafe sparse-MLA shape that can kill the worker.
+# The real scheduler has the corresponding peer-prefill guard above.  Keep
+# the all-MTP and single-request warmups, but omit this synthetic mixed case.
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("/usr/local/lib/python3.12/dist-packages/vllm/v1/worker/gpu/warmup.py")
+s = p.read_text()
+old = '''        if num_reqs >= 2:
+            # Mixed spec / non-spec: GDN and KDA reclassify the non-spec decode
+            # as a prefill and split the batch into spec/non-spec token indices.
+            decode_steps.append(([0, 1], [use_spec_decode, False]))
+            if use_spec_decode:
+                # Exercise the model paths that split a batch by whether each
+                # request received draft tokens.
+                decode_steps.append(([0, 1], [False, False]))
+'''
+new = '''        model_type = getattr(model_runner.model_config.hf_config, "model_type", "")
+        is_glm5_mtp = model_type == "glm5next"
+        if num_reqs >= 2 and not (is_glm5_mtp and use_spec_decode):
+            # Mixed spec / non-spec: GDN and KDA reclassify the non-spec decode
+            # as a prefill and split the batch into spec/non-spec token indices.
+            decode_steps.append(([0, 1], [use_spec_decode, False]))
+            if use_spec_decode:
+                # Exercise the model paths that split a batch by whether each
+                # request received draft tokens.
+                decode_steps.append(([0, 1], [False, False]))
+'''
+if s.count(old) != 1:
+    raise SystemExit("unexpected mixed MTP warmup anchor; refusing to patch")
+p.write_text(s.replace(old, new))
+print("GLM MTP mixed warmup excluded on GB10")
+PY
+
 python3 "$SCRIPT_DIR/patch_v7.py"
 python3 "$SCRIPT_DIR/patch_v8_fp8.py"
