@@ -26,7 +26,8 @@ defaults:
   max_model_len: 128000
 
 # Environment variables
-env: {}
+env:
+  TZ: Asia/Seoul
 
 # The vLLM serve command template
 command: |

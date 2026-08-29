@@ -1340,6 +1340,9 @@ Examples:
         extra_args=extra_args,
         use_ray=use_ray,
     )
+    recipe_env_vars = [
+        f"{key}={value}" for key, value in recipe.get("env", {}).items()
+    ]
 
     if args.dry_run:
         print("=== Generated Launch Script ===")
@@ -1371,6 +1374,8 @@ Examples:
             cmd_parts.extend(["-n", ",".join(nodes)])
         if args.nccl_debug:
             cmd_parts.extend(["--nccl-debug", args.nccl_debug])
+        for env_var in recipe_env_vars:
+            cmd_parts.extend(["-e", env_var])
         for env_var in args.env_vars:
             cmd_parts.extend(["-e", env_var])
         for port_mapping in args.port_mappings:
@@ -1463,6 +1468,8 @@ Examples:
         if args.nccl_debug:
             cmd.extend(["--nccl-debug", args.nccl_debug])
 
+        for env_var in recipe_env_vars:
+            cmd.extend(["-e", env_var])
         for env_var in args.env_vars:
             cmd.extend(["-e", env_var])
 

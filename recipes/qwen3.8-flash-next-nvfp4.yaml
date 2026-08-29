@@ -12,6 +12,9 @@ model: Inferact/Qwen3.8-Flash-Next-NVFP4
 container: vllm-node-qwen
 cluster_only: true
 
+env:
+  TZ: Asia/Seoul
+
 build_args:
   - --rebuild-vllm
   - --vllm-ref

@@ -27,7 +27,8 @@ defaults:
   max_model_len: 131072
 
 # Environment variables
-env: {}
+env:
+  TZ: Asia/Seoul
 
 # The vLLM serve command template
 command: |
@@ -44,4 +45,3 @@ command: |
     --max-model-len {max_model_len} \
     -tp {tensor_parallel} \
     --distributed-executor-backend ray
-

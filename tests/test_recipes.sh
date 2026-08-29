@@ -949,24 +949,18 @@ test_launch_cmd_env_passthrough() {
     fi
 }
 
-# Test: no -e flags when none specified
-test_launch_cmd_no_env_by_default() {
-    log_test "Launch command omits -e when no env vars specified"
-    
-    recipe_name=$(find_solo_recipe)
-    if [[ -z "$recipe_name" ]]; then
-        log_skip "No solo-capable recipes found"
-        return
-    fi
-    
-    output=$("$PROJECT_DIR/run-recipe.py" "$recipe_name" --dry-run --solo 2>&1)
+# Test: recipe environment is passed when the container is created
+test_launch_cmd_recipe_env_passthrough() {
+    log_test "Launch command includes recipe environment vars"
+
+    output=$("$PROJECT_DIR/run-recipe.py" qwen3.8-flash-next-nvfp4 --dry-run -n "10.0.0.1,10.0.0.2" 2>&1)
     launch_cmd=$(extract_launch_cmd "$output")
     
-    if echo "$launch_cmd" | grep -q " -e "; then
-        log_fail "Unexpected -e flag in launch command"
-        log_verbose "Launch cmd: $launch_cmd"
+    if echo "$launch_cmd" | grep -q "-e TZ=Asia/Seoul"; then
+        log_pass "Launch command includes recipe environment vars"
     else
-        log_pass "Launch command correctly omits -e when none specified"
+        log_fail "Recipe environment vars not found in launch command"
+        log_verbose "Launch cmd: $launch_cmd"
     fi
 }
 
@@ -1730,7 +1724,7 @@ main() {
     test_launch_cmd_container_override
     test_launch_cmd_no_solo_in_cluster
     test_launch_cmd_env_passthrough
-    test_launch_cmd_no_env_by_default
+    test_launch_cmd_recipe_env_passthrough
     test_launch_cmd_publish_passthrough
     test_launch_cmd_publish_rejects_cluster
     test_launch_cmd_volume_passthrough

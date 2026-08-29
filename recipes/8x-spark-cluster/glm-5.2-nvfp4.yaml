@@ -12,6 +12,7 @@ cluster_only: true
 mods: []
 
 env:
+  TZ: Asia/Seoul
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
   VLLM_SPARSE_INDEXER_MAX_LOGITS_MB: "256"
   VLLM_DCP_QUERY_SPLIT: "0"

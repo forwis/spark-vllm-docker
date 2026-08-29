@@ -15,6 +15,9 @@ model: LibertAIDAI/GLM-5.3-Flash-NVFP4
 container: vllm-node-glm
 cluster_only: true
 
+env:
+  TZ: Asia/Seoul
+
 build_args:
   - --glm53-gb10
 

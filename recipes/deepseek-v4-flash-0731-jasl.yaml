@@ -24,7 +24,8 @@ defaults:
   max_num_seqs: 8
   max_num_batched_tokens: 8192
 
-env: []
+env:
+  TZ: Asia/Seoul
 
 command: |
   vllm serve deepseek-ai/DeepSeek-V4-Flash-0731 \
@@ -46,4 +47,3 @@ command: |
       --tokenizer-mode deepseek_v4 \
       --reasoning-parser deepseek_v4 \
       --speculative-config '{{"method":"dspark","num_speculative_tokens":5,"draft_sample_method":"probabilistic"}}'
-

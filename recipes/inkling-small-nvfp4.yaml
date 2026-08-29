@@ -32,6 +32,7 @@ defaults:
 
 # Environment variables
 env:
+  TZ: Asia/Seoul
   LAMPORT_RS_SCONV: "0"
   VLLM_USE_BREAKABLE_CUDAGRAPH: "0"
   VLLM_USE_AOT_COMPILE: "1"

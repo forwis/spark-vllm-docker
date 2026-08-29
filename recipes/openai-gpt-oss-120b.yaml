@@ -31,6 +31,7 @@ defaults:
 
 # Environment variables to set in the container
 env:
+  TZ: Asia/Seoul
   VLLM_USE_FLASHINFER_MOE_MXFP4_MXFP8: "1"
 
 # The vLLM serve command template

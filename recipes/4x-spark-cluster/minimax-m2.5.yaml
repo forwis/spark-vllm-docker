@@ -27,6 +27,7 @@ defaults:
 
 # Environment variables
 env:
+  TZ: Asia/Seoul
   VLLM_DISTRIBUTED_EXECUTOR_CONFIG: '{"placement_group_options":{"strategy":"SPREAD"}}'
 
 # The vLLM serve command template
