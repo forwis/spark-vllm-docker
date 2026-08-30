@@ -1183,6 +1183,20 @@ test_glm53_patch_excludes_unsafe_mtp_mixed_warmup() {
     pass "GLM53 patch excludes unsafe MTP mixed warmup on GB10"
 }
 
+test_glm53_patch_disables_tilelang_mhc_on_gb10() {
+    local patch_file="mods/glm53-gb10/apply.sh"
+    for expected in \
+        'unexpected TileLang MHC CUDA gate' \
+        'return major not in (12,)' \
+        'TileLang MHC is unvalidated on SM12x (GB10)' \
+        'TileLang MHC disabled on SM12x'; do
+        if ! grep -Fq "$expected" "$patch_file"; then
+            fail "GLM53 patch is missing GB10 TileLang MHC fallback: $expected"
+        fi
+    done
+    pass "GLM53 patch uses native MHC fallback on GB10"
+}
+
 test_dockerfile_pins_cutlass_dsl_47_everywhere() {
     for expected in \
         'ARG CUTLASS_DSL_VERSION=4.7.0' \
@@ -1448,6 +1462,7 @@ test_dockerfile_installs_qualified_glm53_runner_stack
 test_glm53_patch_normalizes_fp8_kv_storage_dtype_for_flashinfer
 test_glm53_patch_defers_mixed_prefill_while_decoding
 test_glm53_patch_excludes_unsafe_mtp_mixed_warmup
+test_glm53_patch_disables_tilelang_mhc_on_gb10
 test_dockerfile_pins_cutlass_dsl_47_everywhere
 test_dockerfile_uses_profiled_named_wheel_contexts
 test_dockerfile_builds_and_verifies_b12x_source

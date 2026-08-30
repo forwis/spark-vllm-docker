@@ -104,6 +104,34 @@ p.write_text(s.replace(old, new))
 print("PDL gated off on SM12x")
 PY
 
+# TileLang's fused MHC kernels compile on CUDA by default, but its SM12x
+# lowering is not qualified for GB10.  GLM's first text prefill otherwise
+# JIT-compiles mhc_fused_tilelang and terminates the worker.  vLLM already
+# provides a native MHC fallback when TileLang is unavailable; select it only
+# on SM12x without changing the qualified stack on other architectures.
+python3 - <<'PY'
+from pathlib import Path
+
+p = Path("/usr/local/lib/python3.12/dist-packages/vllm/model_executor/layers/mhc.py")
+s = p.read_text()
+old = '''    if current_platform.is_cuda():
+        return True
+'''
+new = '''    if current_platform.is_cuda():
+        try:
+            major, _ = torch.cuda.get_device_capability()
+        except Exception:
+            return False
+        # TileLang MHC is unvalidated on SM12x (GB10); use vLLM's native
+        # correctness fallback there until this lowering is qualified.
+        return major not in (12,)
+'''
+if s.count(old) != 1:
+    raise SystemExit("unexpected TileLang MHC CUDA gate; refusing to patch")
+p.write_text(s.replace(old, new))
+print("TileLang MHC disabled on SM12x")
+PY
+
 # FlashInfer's planner must receive the logical FP8 dtype, not vLLM's uint8
 # storage dtype for the E4M3 KV pages. The forward path already reinterprets
 # the pages as E4M3 before calling FlashInfer; this makes the plan path match.
