@@ -252,7 +252,7 @@ test_glm53_gb10_profile_forwards_runner_patch_mode() {
     run_build --glm53-gb10 || fail "--glm53-gb10 run failed"
     assert_log_not_contains '^docker pull '
     assert_log_not_contains '^docker build --target flashinfer-export '
-    assert_log_contains '^docker build --target vllm-export .*--build-arg VLLM_REF=06569a8696076eeae9558928b00f035ded8f8b60 .*--build-arg VLLM_PRS=53906'
+    assert_log_contains '^docker build --target vllm-export .*--build-arg VLLM_REF=06569a8696076eeae9558928b00f035ded8f8b60 .*--build-arg VLLM_PRS=53906@878631b6079d2cf9fb80830ef9cb41b43aded098'
     assert_log_contains '^docker build -t vllm-node-glm .*--build-arg GLM53_GB10=1 '
     assert_metadata_contains '^flashinfer_commit: not-applicable$'
     assert_metadata_contains '^flashinfer_version: "0\.6\.18\.dev20260819"$'
@@ -1358,8 +1358,9 @@ test_dockerfile_fetches_vllm_prs_from_upstream() {
     sed -n '/ARG VLLM_PRS=""/,/# TEMPORARY PATCH: vLLM PR/p' "$PROJECT_DIR/Dockerfile" > "$vllm_pr_block"
     for expected in \
         'git remote add vllm-upstream "$VLLM_UPSTREAM_REPO"' \
-        'git fetch vllm-upstream +pull/${pr}/head:pr-${pr}' \
-        'git merge-base vllm-upstream/main pr-${pr}'; do
+        'pr_label="${pr%@*}"' \
+        'git fetch vllm-upstream +${pr_ref}:pr-${pr_label}' \
+        'git merge-base vllm-upstream/main pr-${pr_label}'; do
         if ! grep -Fq "$expected" "$vllm_pr_block"; then
             fail "vLLM PR block does not use the dedicated upstream remote: $expected"
         fi

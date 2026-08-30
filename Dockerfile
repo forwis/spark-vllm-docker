@@ -426,16 +426,19 @@ RUN set -eux; \
         git remote add vllm-upstream "$VLLM_UPSTREAM_REPO"; \
         git fetch vllm-upstream +refs/heads/main:refs/remotes/vllm-upstream/main; \
         for pr in $VLLM_ALL_PRS; do \
-            echo "Fetching PR #$pr and applying its patch onto current HEAD..."; \
-            git fetch vllm-upstream +pull/${pr}/head:pr-${pr}; \
-            pr_base="$(git merge-base vllm-upstream/main pr-${pr} || true)"; \
+            pr_label="${pr%@*}"; \
+            pr_ref="${pr#*@}"; \
+            if [ "$pr_label" = "$pr_ref" ]; then pr_ref="pull/${pr}/head"; fi; \
+            echo "Fetching PR #$pr_label ($pr_ref) and applying its patch onto current HEAD..."; \
+            git fetch vllm-upstream +${pr_ref}:pr-${pr_label}; \
+            pr_base="$(git merge-base vllm-upstream/main pr-${pr_label} || true)"; \
             if [ -z "$pr_base" ]; then \
-                echo "Unable to find an upstream main merge-base for PR #$pr."; \
+                echo "Unable to find an upstream main merge-base for PR #$pr_label."; \
                 exit 1; \
             fi; \
-            patch_file="/tmp/pr-${pr}.patch"; \
-            echo "PR #$pr patch range: $pr_base..pr-${pr}; apply target: $(git rev-parse HEAD)."; \
-            git diff --binary "$pr_base" "pr-${pr}" > "$patch_file"; \
+            patch_file="/tmp/pr-${pr_label}.patch"; \
+            echo "PR #$pr_label patch range: $pr_base..pr-${pr_label}; apply target: $(git rev-parse HEAD)."; \
+            git diff --binary "$pr_base" "pr-${pr_label}" > "$patch_file"; \
             if [ ! -s "$patch_file" ]; then \
                 echo "PR #$pr has no patch relative to upstream main; skipping."; \
                 rm -f "$patch_file"; \

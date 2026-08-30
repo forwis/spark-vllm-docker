@@ -38,6 +38,7 @@ EXP_B12X_VLLM_REF="dev/infernal-invocation"
 GLM53_GB10=false
 GLM53_GB10_VLLM_REF="06569a8696076eeae9558928b00f035ded8f8b60"
 GLM53_GB10_VLLM_PR="53906"
+GLM53_GB10_VLLM_PR_COMMIT="878631b6079d2cf9fb80830ef9cb41b43aded098"
 GLM53_GB10_FLASHINFER_VERSION="0.6.18.dev20260819"
 GLM53_GB10_FLASHINFER_SOURCE="https://flashinfer.ai/whl/nightly/"
 GLM53_GB10_CUTLASS_DSL_VERSION="4.6.2"
@@ -804,7 +805,9 @@ if [ "$GLM53_GB10" = true ]; then
 
     VLLM_REF="$GLM53_GB10_VLLM_REF"
     VLLM_REF_SET=true
-    VLLM_PRS="$GLM53_GB10_VLLM_PR"
+    # Pin the qualified GLM source revision. PR heads are mutable and would
+    # otherwise silently change this locked GB10 profile.
+    VLLM_PRS="${GLM53_GB10_VLLM_PR}@${GLM53_GB10_VLLM_PR_COMMIT}"
     REBUILD_VLLM=true
 fi
 
