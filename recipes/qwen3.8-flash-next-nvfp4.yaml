@@ -30,16 +30,17 @@ build_args:
   - v0.6.17
 
 defaults:
-  port: 8000
+  port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.85
+  gpu_memory_utilization: 0.90
   max_model_len: 262144
   max_num_seqs: 8
   max_num_batched_tokens: 8192
 
 command: |
   vllm serve Inferact/Qwen3.8-Flash-Next-NVFP4 \
+    --served-model-name qwen3.8-flash-next \
     --host {host} \
     --port {port} \
     --tensor-parallel-size {tensor_parallel} \
@@ -55,7 +56,5 @@ command: |
     --tool-call-parser qwen3_coder \
     --enable-auto-tool-choice \
     --speculative-config '{{"method":"mtp","num_speculative_tokens":3}}' \
-    --max-model-len {max_model_len}
-
-#--hf-overrides '{"rope_parameters":{"rope_type":"yarn","factor":4.0,"original_max_position_embeddings":262144}}' \
-#--max-model-len 1000000
+    --hf-overrides '{"rope_parameters":{"rope_type":"yarn","factor":4.0,"original_max_position_embeddings":262144}}' \
+    --max-model-len 1000000
