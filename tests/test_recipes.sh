@@ -1420,6 +1420,7 @@ test_glm53_flash_nvfp4_profile() {
         "--max-num-batched-tokens 2048" \
         "--block-size 2304" \
         "--moe-backend marlin" \
+        "--load-format instanttensor" \
         "--kv-cache-dtype fp8_e4m3" \
         "--enforce-eager" \
         "--limit-mm-per-prompt '{\"image\":8,\"video\":1}'" \
@@ -1432,9 +1433,9 @@ test_glm53_flash_nvfp4_profile() {
             log_verbose "Missing GLM command argument: $expected"
         fi
     done
-    if echo "$vllm_cmd" | grep -qF -- "--load-format"; then
+    if echo "$vllm_cmd" | grep -qF -- "--language-model-only"; then
         all_passed=false
-        log_verbose "GLM command must use vLLM's default loader; explicit load formats are unsafe for this TP2 profile"
+        log_verbose "Multimodal GLM command must not enable text-only mode"
     fi
     if ! echo "$launch_cmd" | grep -qF -- "-t vllm-node-glm"; then
         all_passed=false

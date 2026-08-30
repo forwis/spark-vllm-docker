@@ -9,7 +9,7 @@
 
 recipe_version: "1"
 name: GLM-5.3-Flash-NVFP4 (TP=2)
-description: Validated GB10 TP2 profile with FP8 KV cache and native MTP
+description: Multimodal GB10 TP2 profile with FP8 KV cache and native MTP
 
 model: LibertAIDAI/GLM-5.3-Flash-NVFP4
 container: vllm-node-glm
@@ -56,6 +56,7 @@ command: |
     --max-num-batched-tokens {max_num_batched_tokens} \
     --block-size {block_size} \
     --moe-backend marlin \
+    --load-format instanttensor \
     --kv-cache-dtype fp8_e4m3 \
     --enforce-eager \
     --limit-mm-per-prompt '{{"image":8,"video":1}}' \
