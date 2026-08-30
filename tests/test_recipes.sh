@@ -1360,6 +1360,8 @@ test_qwen38_flash_next_nvfp4_profile() {
     for expected in \
         "Inferact/Qwen3.8-Flash-Next-NVFP4" \
         "--tensor-parallel-size 2" \
+        "--gpu-memory-utilization 0.85" \
+        "--enforce-eager" \
         "--reasoning-parser qwen3" \
         "--tool-call-parser qwen3_coder" \
         "--enable-auto-tool-choice"; do

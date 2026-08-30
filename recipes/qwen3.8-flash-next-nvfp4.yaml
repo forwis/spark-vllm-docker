@@ -1,12 +1,15 @@
 # Recipe: Qwen3.8-Flash-Next-NVFP4 on two DGX Spark nodes.
-# Reference: https://forums.developer.nvidia.com/t/qwen3-8-flash-next-176b-now-available/381413
+# References:
+# https://forums.developer.nvidia.com/t/qwen3-8-flash-next/381228/62
+# https://forums.developer.nvidia.com/t/qwen3-8-flash-fp8-dual-sparks/381440
+# https://forums.developer.nvidia.com/t/qwen3-8-flash-next-nvfp4-on-2x-gb10-long-agent-service-crash-isolation-42-4-tok-s-qualified-tp2/381836
 # Before launch, reclaim filesystem caches on every host using an
 # operator-approved host procedure. This recipe intentionally does not run
 # privileged host cache-clearing commands.
 
 recipe_version: "1"
 name: Qwen3.8-Flash-Next-NVFP4 (TP=2)
-description: Conservative TP2 serving profile for Inferact/Qwen3.8-Flash-Next-NVFP4
+description: Eager TP2 serving profile for Inferact/Qwen3.8-Flash-Next-NVFP4
 
 model: Inferact/Qwen3.8-Flash-Next-NVFP4
 container: vllm-node-qwen
@@ -30,7 +33,7 @@ defaults:
   port: 8000
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.90
+  gpu_memory_utilization: 0.85
   max_model_len: 262144
   max_num_seqs: 8
   max_num_batched_tokens: 8192
@@ -44,12 +47,15 @@ command: |
     --gpu-memory-utilization {gpu_memory_utilization} \
     --max-num-seqs {max_num_seqs} \
     --max-num-batched-tokens {max_num_batched_tokens} \
+    --enforce-eager \
     --enable-prefix-caching \
     --no-enable-flashinfer-autotune \
     --load-format instanttensor \
     --reasoning-parser qwen3 \
-    --tool-call-parser qwen3_xml \
+    --tool-call-parser qwen3_coder \
     --enable-auto-tool-choice \
     --speculative-config '{{"method":"mtp","num_speculative_tokens":3}}' \
-    --hf-overrides '{{"rope_parameters":{{"rope_type":"yarn","factor":4.0,"original_max_position_embeddings":262144}}}}' \
-    --max-model-len 1000000
+    --max-model-len {max_model_len}
+
+#--hf-overrides '{"rope_parameters":{"rope_type":"yarn","factor":4.0,"original_max_position_embeddings":262144}}' \
+#--max-model-len 1000000
