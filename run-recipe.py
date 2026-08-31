@@ -119,6 +119,14 @@ def runtime_vllm_pr_number(value: str) -> str:
     return value
 
 
+def dry_run_env_var(env_var: str) -> str:
+    """Render environment assignments without exposing the runtime API key."""
+    key, separator, _value = env_var.partition("=")
+    if separator and key == "VLLM_API_KEY":
+        return f"{key}=<redacted>"
+    return env_var
+
+
 class OrderedLaunchLayerAction(argparse.Action):
     """Collect a repeatable launch layer while preserving mixed CLI ordering."""
 
@@ -1375,9 +1383,9 @@ Examples:
         if args.nccl_debug:
             cmd_parts.extend(["--nccl-debug", args.nccl_debug])
         for env_var in recipe_env_vars:
-            cmd_parts.extend(["-e", env_var])
+            cmd_parts.extend(["-e", dry_run_env_var(env_var)])
         for env_var in args.env_vars:
-            cmd_parts.extend(["-e", env_var])
+            cmd_parts.extend(["-e", dry_run_env_var(env_var)])
         for port_mapping in args.port_mappings:
             cmd_parts.extend(["-p", port_mapping])
         for volume_mapping in args.volume_mappings:

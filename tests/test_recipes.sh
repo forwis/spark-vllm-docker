@@ -949,6 +949,28 @@ test_launch_cmd_env_passthrough() {
     fi
 }
 
+# Test: wrapper dry-runs redact the inherited vLLM API key
+test_wrapper_dry_run_redacts_vllm_api_key() {
+    log_test "Wrapper dry-run redacts VLLM_API_KEY"
+
+    local output
+    local status
+
+    output=$(VLLM_API_KEY=redaction-test-key "$PROJECT_DIR/run-recipe.sh" \
+        glm-5.3-flash-nvfp4 --config /dev/null --dry-run \
+        -n "10.0.0.1,10.0.0.2" 2>&1)
+    status=$?
+
+    if [[ $status -eq 0 ]] \
+        && ! echo "$output" | grep -qF -- "VLLM_API_KEY=redaction-test-key" \
+        && echo "$output" | grep -qF -- "VLLM_API_KEY=<redacted>"; then
+        log_pass "Wrapper dry-run redacts VLLM_API_KEY"
+    else
+        log_fail "Wrapper dry-run exposed VLLM_API_KEY or omitted its redaction"
+        log_verbose "$output"
+    fi
+}
+
 # Test: recipe environment is passed when the container is created
 test_launch_cmd_recipe_env_passthrough() {
     log_test "Launch command includes recipe environment vars"
@@ -1762,6 +1784,7 @@ main() {
     test_launch_cmd_container_override
     test_launch_cmd_no_solo_in_cluster
     test_launch_cmd_env_passthrough
+    test_wrapper_dry_run_redacts_vllm_api_key
     test_launch_cmd_recipe_env_passthrough
     test_launch_cmd_publish_passthrough
     test_launch_cmd_publish_rejects_cluster
