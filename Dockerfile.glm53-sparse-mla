@@ -1,0 +1,27 @@
+FROM vllm/vllm-openai:glm53-flash-arm64-cu130
+
+ARG BUILD_JOBS=16
+ARG GLM53_ARCHS=121a
+ENV MAX_JOBS=${BUILD_JOBS}
+
+COPY mods/glm53-sparse-mla /opt/spark-vllm/glm53-sparse-mla
+
+RUN GLM53_ARCHS="${GLM53_ARCHS}" \
+    pip install --no-build-isolation --no-deps \
+        /opt/spark-vllm/glm53-sparse-mla \
+    && python3 - <<'PY'
+from importlib.metadata import entry_points
+
+plugins = {
+    (entry.name, entry.value)
+    for entry in entry_points(group="vllm.general_plugins")
+}
+assert (
+    "glm53_sparse_mla",
+    "glm53_sparse_mla.backend:register",
+) in plugins
+assert (
+    "glm53_moe_fix",
+    "glm53_sparse_mla.moe_fix:register",
+) in plugins
+PY

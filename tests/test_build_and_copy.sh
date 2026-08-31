@@ -48,8 +48,8 @@ setup_fixture() {
     cp "$PROJECT_DIR/build-and-copy.sh" "$FIXTURE_DIR/"
     cp "$PROJECT_DIR/autodiscover.sh" "$FIXTURE_DIR/"
     cp "$PROJECT_DIR/Dockerfile" "$FIXTURE_DIR/"
-    if [ -f "$PROJECT_DIR/Dockerfile.glm53-dflash2" ]; then
-        cp "$PROJECT_DIR/Dockerfile.glm53-dflash2" "$FIXTURE_DIR/"
+    if [ -f "$PROJECT_DIR/Dockerfile.glm53-sparse-mla" ]; then
+        cp "$PROJECT_DIR/Dockerfile.glm53-sparse-mla" "$FIXTURE_DIR/"
     fi
     if [ -f "$PROJECT_DIR/Dockerfile.qwen38-flash-next" ]; then
         cp "$PROJECT_DIR/Dockerfile.qwen38-flash-next" "$FIXTURE_DIR/"
@@ -283,13 +283,14 @@ test_qwen38_flash_next_rejects_source_build_overrides() {
     pass "--qwen38-flash-next rejects source-build overrides"
 }
 
-test_glm53_gb10_profile_builds_qualified_dflash2_image() {
+test_glm53_gb10_profile_builds_sparse_mla_plugin_image() {
     setup_fixture
-    run_build --glm53-gb10 || fail "--glm53-gb10 run failed"
+    run_build --glm53-gb10 --build-jobs 7 || fail "--glm53-gb10 run failed"
     assert_log_not_contains '^docker pull '
-    assert_log_contains '^docker build -f Dockerfile\.glm53-dflash2 -t vllm-node-glm '
+    assert_log_contains '^docker build -f Dockerfile\.glm53-sparse-mla -t vllm-node-glm .*--build-arg BUILD_JOBS=7 .*--build-arg GLM53_ARCHS=121a \.$'
     assert_log_not_contains '^docker build --target (flashinfer-export|vllm-export) '
-    pass "--glm53-gb10 locally builds the qualified upstream DFlash2 image"
+    assert_output_contains 'Building qualified GLM-5\.3 sparse-MLA plugin image'
+    pass "--glm53-gb10 builds the SM121 sparse-MLA plugin image"
 }
 
 test_glm53_gb10_rejects_qualified_profile_overrides() {
@@ -1348,7 +1349,7 @@ test_default_uses_prebuilt
 test_tf5_uses_prebuilt_tf5_tag
 test_qwen38_flash_next_builds_from_official_base
 test_qwen38_flash_next_rejects_source_build_overrides
-test_glm53_gb10_profile_builds_qualified_dflash2_image
+test_glm53_gb10_profile_builds_sparse_mla_plugin_image
 test_glm53_gb10_rejects_qualified_profile_overrides
 test_custom_tag_uses_prebuilt_custom_tag
 test_default_gpu_arch_stays_prebuilt

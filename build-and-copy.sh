@@ -627,7 +627,7 @@ usage() {
     echo "  --tf5                         : Deprecated compatibility flag; tag defaults to 'vllm-node-tf5' (aliases: --pre-tf, --pre-transformers)"
     echo "  --exp-mxfp4, --experimental-mxfp4 : Build with experimental native MXFP4 support"
     echo "  --exp-b12x, --experimental-b12x   : Select B12X; pulls its prebuilt image unless a local wheel/image build is requested"
-    echo "  --glm53-gb10                 : Build the qualified GLM-5.3 GB10 DFlash2 image"
+    echo "  --glm53-gb10                 : Build the qualified GLM-5.3 GB10 sparse-MLA plugin image"
     echo "  --qwen38-flash-next          : Build Qwen3.8 Flash Next from the official vLLM base image"
     echo "  --apply-vllm-pr <pr-num>      : Apply a specific PR patch to vLLM source. Can be specified multiple times."
     echo "  --apply-preset-vllm-prs       : Apply preset vLLM PRs even with --vllm-repo, --vllm-ref, or --apply-vllm-pr."
@@ -789,8 +789,8 @@ if [ "$QWEN38_FLASH_NEXT" = true ]; then
     fi
 fi
 
-# The GLM-5.3 GB10 profile locally reproduces the qualified reference image's
-# exact base and patch chain. Overrides would silently turn it into a different,
+# The GLM-5.3 GB10 profile uses the qualified official base and sparse-MLA
+# plugin package. Overrides would silently turn it into a different,
 # unvalidated dependency combination.
 if [ "$GLM53_GB10" = true ]; then
     if [ "$EXP_MXFP4" = true ]; then echo "Error: --glm53-gb10 is incompatible with --exp-mxfp4"; exit 1; fi
@@ -1159,16 +1159,17 @@ if [ "$NO_BUILD" = false ]; then
         RUNNER_END=$(date +%s)
         RUNNER_BUILD_TIME=$((RUNNER_END - RUNNER_START))
     elif [ "$GLM53_GB10" = true ]; then
-        GLM53_CMD=("docker" "build" "-f" "Dockerfile.glm53-dflash2" "-t" "$IMAGE_TAG")
+        GLM53_CMD=("docker" "build" "-f" "Dockerfile.glm53-sparse-mla" "-t" "$IMAGE_TAG")
         if [ "$FULL_LOG" = true ]; then
             GLM53_CMD+=("--progress=plain")
         fi
         if [ -n "$NETWORK_ARG" ]; then
             GLM53_CMD+=("--network" "$NETWORK_ARG")
         fi
-        GLM53_CMD+=("--build-arg" "BUILD_JOBS=$BUILD_JOBS" ".")
+        GLM53_CMD+=("--build-arg" "BUILD_JOBS=$BUILD_JOBS")
+        GLM53_CMD+=("--build-arg" "GLM53_ARCHS=${DEFAULT_GPU_ARCH_LIST//./}" ".")
 
-        echo "Building qualified GLM-5.3 DFlash2 image with command: ${GLM53_CMD[*]}"
+        echo "Building qualified GLM-5.3 sparse-MLA plugin image with command: ${GLM53_CMD[*]}"
         RUNNER_START=$(date +%s)
         "${GLM53_CMD[@]}"
         RUNNER_END=$(date +%s)
