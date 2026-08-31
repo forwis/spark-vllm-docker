@@ -19,4 +19,6 @@ benchmark-plots
 backup-wheels
 .codex
 wheels
+/.superpowers/
+/.worktrees/
 /.idea/*
