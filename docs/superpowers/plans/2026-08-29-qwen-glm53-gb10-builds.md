@@ -1,5 +1,9 @@
 # Qwen and GLM-5.3 GB10 Builds Implementation Plan
 
+> **GLM-5.3 note:** The GLM portions of this historical document are superseded
+> by `docs/superpowers/specs/2026-08-31-glm53-sparse-mla-reimplementation-design.md`.
+> Its Qwen portions remain historical records of the Qwen implementation.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add reproducible Qwen and GLM-5.3 GB10 image profiles and recipes, then build and copy both images.

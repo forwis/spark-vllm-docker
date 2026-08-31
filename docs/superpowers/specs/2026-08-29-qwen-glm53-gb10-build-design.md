@@ -1,5 +1,9 @@
 # Qwen and GLM-5.3 GB10 Build Design
 
+> **GLM-5.3 note:** The GLM portions of this historical document are superseded
+> by `docs/superpowers/specs/2026-08-31-glm53-sparse-mla-reimplementation-design.md`.
+> Its Qwen portions remain historical records of the Qwen implementation.
+
 ## Goal
 
 Provide reproducible local image builds for Qwen3.8 Flash Next and GLM-5.3

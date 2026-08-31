@@ -181,23 +181,19 @@ replaces the earlier custom vLLM PR and FlashInfer source-wheel rebuild path:
 ./run-recipe.sh recipes/qwen3.8-flash-next-nvfp4.yaml
 ```
 
-#### GLM-5.3 Flash DFlash2 profile
+#### GLM-5.3 Flash sparse-MLA profile
 
-The two-Spark `glm-5.3-flash-nvfp4` recipe now follows the qualified
-[GLM-5.3 DFlash2 reference](https://github.com/tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark).
-It locally builds the reference patch chain from the official GLM-5.3 vLLM
-base image, including the DFlash2 overlay and SM121 long-context top-k fix. The
-recipe uses the `RedHatAI/GLM-5.3-Flash-NVFP4` compressed-tensors checkpoint
-and drafts with `incoai/GLM-5.3-Flash-DFlash2`. The checkpoint change avoids
-the ModelOpt token corruption tracked in
-[vLLM issue #54150](https://github.com/vllm-project/vllm/issues/54150).
+The two-Spark `glm-5.3-flash-nvfp4` recipe locally builds `vllm-node-glm` from
+the official GLM-5.3 vLLM base with the sparse-MLA vLLM plugin pinned from
+[`Libertai/glm53-flash-vllm-gb10`](https://github.com/Libertai/glm53-flash-vllm-gb10).
+This qualified profile targets SM121 and requires TP2 with a BF16 KV cache. It
+uses model-native MTP with three speculative tokens.
 
-Download and distribute both models before launching:
+Build, download, and launch the single-model workflow:
 
 ```bash
 ./build-and-copy.sh --glm53-gb10 -c --copy-parallel
-./hf-download.sh RedHatAI/GLM-5.3-Flash-NVFP4 -c --copy-parallel
-./hf-download.sh incoai/GLM-5.3-Flash-DFlash2 -c --copy-parallel
+./hf-download.sh LibertAIDAI/GLM-5.3-Flash-NVFP4 -c --copy-parallel
 ./run-recipe.sh recipes/glm-5.3-flash-nvfp4.yaml
 ```
 

@@ -40,10 +40,11 @@ container launch is operation.
   `vllm/vllm-openai:qwen38-flash-next` base. Preserve that qualified base and
   its SM121 architecture inputs unless a task explicitly changes them.
 - `--glm53-gb10` locally builds `vllm-node-glm` from the official GLM-5.3 vLLM
-  base plus the vendored upstream DFlash2/SM121 patch chain. Its base image,
-  dependency pins, compressed-tensors checkpoint, DFlash2 drafter, and serving
-  flags are a single qualified profile; do not mix it with manual vLLM,
-  FlashInfer, Torch, GPU-architecture, or experimental-profile overrides.
+  base plus the vendored sparse-MLA vLLM plugin pinned from
+  `Libertai/glm53-flash-vllm-gb10`. Its base image, SM121 build target, TP2/BF16
+  kernel contract, checkpoint, and serving flags are one qualified profile; do
+  not mix it with manual vLLM, FlashInfer, Torch, GPU-architecture, KV-dtype, or
+  experimental-profile overrides.
 - The GLM recipe is cluster-only and requires operator-managed filesystem-cache
   reclamation on each host before launch. Do not add privileged cache-clearing
   commands to recipes, containers, or ordinary development validation.

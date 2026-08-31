@@ -1438,7 +1438,7 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
         log_verbose "GLM launch command does not use vllm-node-glm"
     fi
-    if echo "$launch_cmd" | grep -qF -- "--apply-mod mods/glm53-dflash2"; then
+    if echo "$launch_cmd" | grep -qF -- "--apply-mod mods/glm53-sparse-mla"; then
         all_passed=false
         log_verbose "GLM sparse-MLA launch command unexpectedly applies a build-time patch as a runtime mod"
     fi
