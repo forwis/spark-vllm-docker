@@ -1392,9 +1392,9 @@ test_qwen38_flash_next_nvfp4_profile() {
     fi
 }
 
-# Test: GLM-5.3 Flash uses the qualified upstream DFlash2 TP2 profile
+# Test: GLM-5.3 Flash uses the qualified sparse-MLA TP2 profile
 test_glm53_flash_nvfp4_profile() {
-    log_test "GLM-5.3 Flash NVFP4 qualified TP2 profile"
+    log_test "GLM-5.3 Flash NVFP4 sparse-MLA TP2 profile"
 
     local output
     local status
@@ -1412,22 +1412,18 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
     fi
     for expected in \
-        "/root/.cache/huggingface/hub/models--RedHatAI--GLM-5.3-Flash-NVFP4/snapshots/" \
-        "/root/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/" \
+        "LibertAIDAI/GLM-5.3-Flash-NVFP4" \
         "--tensor-parallel-size 2" \
-        "--gpu-memory-utilization 0.85" \
-        "--max-model-len 262144" \
-        "--max-num-seqs 6" \
-        "--max-num-batched-tokens 8192" \
-        "--block-size 2304" \
-        "--moe-backend marlin" \
-        "--kv-cache-dtype fp8_e4m3" \
+        "--gpu-memory-utilization 0.8" \
+        "--max-model-len 65536" \
+        "--max-num-seqs 2" \
+        "--max-num-batched-tokens 1024" \
+        "--block-size 256" \
+        "--moe-backend flashinfer_cutlass" \
+        "--kv-cache-dtype bfloat16" \
         "--enforce-eager" \
-        "--speculative-config '{\"method\":\"dflash\",\"model\":" \
-        "\"num_speculative_tokens\":7}" \
-        "--default-chat-template-kwargs '{\"enable_thinking\":false}'" \
-        "--chat-template /opt/spark-vllm/glm53/chat_template_mm.jinja" \
-        "--reasoning-parser glm45" \
+        "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":3}'" \
+        "--reasoning-parser deepseek_r1" \
         "--tool-call-parser glm47"; do
         if ! echo "$vllm_cmd" | grep -qF -- "$expected"; then
             all_passed=false
@@ -1444,12 +1440,13 @@ test_glm53_flash_nvfp4_profile() {
     fi
     if echo "$launch_cmd" | grep -qF -- "--apply-mod mods/glm53-dflash2"; then
         all_passed=false
-        log_verbose "GLM launch command unexpectedly applies a build-time patch as a runtime mod"
+        log_verbose "GLM sparse-MLA launch command unexpectedly applies a build-time patch as a runtime mod"
     fi
     for expected in \
         "-e TORCH_CUDA_ARCH_LIST=12.1a" \
         "-e FLASHINFER_CUDA_ARCH_LIST=12.1a" \
         "-e FLASHINFER_DISABLE_VERSION_CHECK=1" \
+        "-e VLLM_GLM53_CUDA_SPARSE_MLA=1" \
         "-e NCCL_CUMEM_ENABLE=0" \
         "-e NCCL_NVLS_ENABLE=0" \
         "-e NCCL_CROSS_NIC=0" \
@@ -1459,6 +1456,17 @@ test_glm53_flash_nvfp4_profile() {
         if ! echo "$launch_cmd" | grep -qF -- "$expected"; then
             all_passed=false
             log_verbose "Missing GLM cluster environment: $expected"
+        fi
+    done
+    for unexpected in \
+        "GLM-5.3-Flash-DFlash2" \
+        "--moe-backend marlin" \
+        "--kv-cache-dtype fp8" \
+        "VLLM_GLM53_MOE_INPUT_SCALE" \
+        "--reasoning-parser glm45"; do
+        if echo "$output" | grep -qF -- "$unexpected"; then
+            all_passed=false
+            log_verbose "GLM sparse-MLA profile unexpectedly includes: $unexpected"
         fi
     done
     if ! echo "$output" | grep -qF -- "Build args: --glm53-gb10"; then
@@ -1471,9 +1479,9 @@ test_glm53_flash_nvfp4_profile() {
     fi
 
     if [[ "$all_passed" == "true" ]]; then
-        log_pass "GLM-5.3 Flash uses the qualified upstream DFlash2 TP2 profile"
+        log_pass "GLM-5.3 Flash uses the qualified sparse-MLA TP2 profile"
     else
-        log_fail "GLM-5.3 Flash qualified TP2 profile is incomplete"
+        log_fail "GLM-5.3 Flash sparse-MLA TP2 profile is incomplete"
         log_verbose "$output"
     fi
 }

@@ -1,22 +1,19 @@
 # Recipe: GLM-5.3-Flash-NVFP4 on two DGX Spark nodes.
-# References:
-# https://github.com/tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark
-# https://github.com/vllm-project/vllm/issues/54150
+# Sparse-MLA source: /home/arbusto/git/glm53-flash-vllm-gb10
 # Replace any earlier vllm-node-glm image on both nodes before launch:
 # ./build-and-copy.sh --glm53-gb10 -c --copy-parallel
-# Download both models to every node before launch:
-# ./hf-download.sh RedHatAI/GLM-5.3-Flash-NVFP4 -c --copy-parallel
-# ./hf-download.sh incoai/GLM-5.3-Flash-DFlash2 -c --copy-parallel
+# Download only this model to every node before launch:
+# ./hf-download.sh LibertAIDAI/GLM-5.3-Flash-NVFP4 -c --copy-parallel
 # Before every launch, reclaim filesystem caches on both hosts using an
 # operator-approved host procedure. The GB10 driver needs genuinely free pages
 # for the KV slab. This recipe intentionally does not run privileged host
 # cache-clearing commands.
 
 recipe_version: "1"
-name: GLM-5.3-Flash-NVFP4 (TP=2)
-description: Qualified GB10 TP2 profile with FP8 KV cache and DFlash2
+name: GLM-5.3-Flash-NVFP4 sparse MLA (TP=2)
+description: Qualified GB10 TP2 profile using the vendored sparse-MLA vLLM plugin
 
-model: RedHatAI/GLM-5.3-Flash-NVFP4
+model: LibertAIDAI/GLM-5.3-Flash-NVFP4
 container: vllm-node-glm
 cluster_only: true
 
@@ -25,9 +22,7 @@ env:
   TORCH_CUDA_ARCH_LIST: "12.1a"
   FLASHINFER_CUDA_ARCH_LIST: "12.1a"
   FLASHINFER_DISABLE_VERSION_CHECK: "1"
-  # Required by the validated TP2 GB10/RoCE profile.  In particular, async
-  # handling keeps PyTorch's NCCL watchdog from terminating a local worker
-  # without surfacing the underlying fabric error.
+  VLLM_GLM53_CUDA_SPARSE_MLA: "1"
   NCCL_CUMEM_ENABLE: "0"
   NCCL_NVLS_ENABLE: "0"
   NCCL_CROSS_NIC: "0"
@@ -42,27 +37,27 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.90
-  max_num_seqs: 6
-  max_num_batched_tokens: 8192
-  block_size: 2304
+  gpu_memory_utilization: 0.80
+  max_num_seqs: 2
+  max_num_batched_tokens: 1024
+  block_size: 256
 
 command: |
-  vllm serve RedHatAI/GLM-5.3-Flash-NVFP4 \
+  vllm serve LibertAIDAI/GLM-5.3-Flash-NVFP4 \
     --served-model-name glm-5.3-flash \
     --host {host} \
     --port {port} \
     --trust-remote-code \
     --tensor-parallel-size {tensor_parallel} \
     --gpu-memory-utilization {gpu_memory_utilization} \
-    --max-model-len auto \
+    --max-model-len 65536 \
     --max-num-seqs {max_num_seqs} \
     --max-num-batched-tokens {max_num_batched_tokens} \
     --block-size {block_size} \
-    --moe-backend marlin \
+    --moe-backend flashinfer_cutlass \
     --enforce-eager \
     --enable-auto-tool-choice \
     --tool-call-parser glm47 \
-    --reasoning-parser glm45 \
-    --kv-cache-dtype fp8_e4m3 \
-    --speculative-config '{{"method":"mtp","num_speculative_tokens":4}}'
+    --reasoning-parser deepseek_r1 \
+    --kv-cache-dtype bfloat16 \
+    --speculative-config '{{"method":"mtp","num_speculative_tokens":3}}'
