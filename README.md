@@ -168,6 +168,39 @@ For periodic maintenance, I recommend using a filter: `docker builder prune --fi
 
 ## CHANGELOG
 
+### 2026-08-31
+
+#### Qwen3.8 Flash Next official-base build
+
+The two-Spark `qwen3.8-flash-next-nvfp4` recipe now builds `vllm-node-qwen`
+locally from the official `vllm/vllm-openai:qwen38-flash-next` base image. This
+replaces the earlier custom vLLM PR and FlashInfer source-wheel rebuild path:
+
+```bash
+./build-and-copy.sh --qwen38-flash-next -c --copy-parallel
+./run-recipe.sh recipes/qwen3.8-flash-next-nvfp4.yaml
+```
+
+#### GLM-5.3 Flash DFlash2 profile
+
+The two-Spark `glm-5.3-flash-nvfp4` recipe now follows the qualified
+[GLM-5.3 DFlash2 reference](https://github.com/tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark).
+It locally builds the reference patch chain from the official GLM-5.3 vLLM
+base image, including the DFlash2 overlay and SM121 long-context top-k fix. The
+recipe uses the `RedHatAI/GLM-5.3-Flash-NVFP4` compressed-tensors checkpoint
+and drafts with `incoai/GLM-5.3-Flash-DFlash2`. The checkpoint change avoids
+the ModelOpt token corruption tracked in
+[vLLM issue #54150](https://github.com/vllm-project/vllm/issues/54150).
+
+Download and distribute both models before launching:
+
+```bash
+./build-and-copy.sh --glm53-gb10 -c --copy-parallel
+./hf-download.sh RedHatAI/GLM-5.3-Flash-NVFP4 -c --copy-parallel
+./hf-download.sh incoai/GLM-5.3-Flash-DFlash2 -c --copy-parallel
+./run-recipe.sh recipes/glm-5.3-flash-nvfp4.yaml
+```
+
 ### 2026-08-25
 
 #### Local vLLM source checkouts

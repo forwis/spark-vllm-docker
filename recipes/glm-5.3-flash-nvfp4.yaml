@@ -1,7 +1,12 @@
 # Recipe: GLM-5.3-Flash-NVFP4 on two DGX Spark nodes.
 # References:
-# https://forums.developer.nvidia.com/t/glm-5-3-flash-on-2x-nvidia-dgx-spark-dflash2-60-tok-s-peak-checkpoint/381429
-# https://forums.developer.nvidia.com/t/glm-5-3-flash-nvfp4-on-2x-dgx-spark-vllm-tp-2-docker-compose/381541
+# https://github.com/tonyd2wild/GLM-5.3-Flash-NVFP4-DFlash2-2x-DGX-Spark
+# https://github.com/vllm-project/vllm/issues/54150
+# Replace any earlier vllm-node-glm image on both nodes before launch:
+# ./build-and-copy.sh --glm53-gb10 -c --copy-parallel
+# Download both models to every node before launch:
+# ./hf-download.sh RedHatAI/GLM-5.3-Flash-NVFP4 -c --copy-parallel
+# ./hf-download.sh incoai/GLM-5.3-Flash-DFlash2 -c --copy-parallel
 # Before every launch, reclaim filesystem caches on both hosts using an
 # operator-approved host procedure. The GB10 driver needs genuinely free pages
 # for the KV slab. This recipe intentionally does not run privileged host
@@ -9,14 +14,17 @@
 
 recipe_version: "1"
 name: GLM-5.3-Flash-NVFP4 (TP=2)
-description: Multimodal GB10 TP2 profile with FP8 KV cache and native MTP
+description: Qualified GB10 TP2 profile with FP8 KV cache and DFlash2
 
-model: LibertAIDAI/GLM-5.3-Flash-NVFP4
+model: RedHatAI/GLM-5.3-Flash-NVFP4
 container: vllm-node-glm
 cluster_only: true
 
 env:
   TZ: Asia/Seoul
+  TORCH_CUDA_ARCH_LIST: "12.1a"
+  FLASHINFER_CUDA_ARCH_LIST: "12.1a"
+  FLASHINFER_DISABLE_VERSION_CHECK: "1"
   # Required by the validated TP2 GB10/RoCE profile.  In particular, async
   # handling keeps PyTorch's NCCL watchdog from terminating a local worker
   # without surfacing the underlying fabric error.
@@ -26,7 +34,6 @@ env:
   NCCL_IB_MERGE_NICS: "0"
   TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
   VLLM_ENGINE_READY_TIMEOUT_S: "3600"
-  GLM53_MIXED_PREFILL_CHUNK: skip
 
 build_args:
   - --glm53-gb10
@@ -35,16 +42,17 @@ defaults:
   port: 54351
   host: 0.0.0.0
   tensor_parallel: 2
-  gpu_memory_utilization: 0.89
-  max_model_len: 200000
-  max_num_seqs: 5
-  max_num_batched_tokens: 2048
+  gpu_memory_utilization: 0.85
+  max_model_len: 262144
+  max_num_seqs: 6
+  max_num_batched_tokens: 8192
   block_size: 2304
-  num_speculative_tokens: 5
+  num_speculative_tokens: 7
 
 command: |
-  glm53_model_snapshot="$(cat /root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/refs/main)"
-  vllm serve "/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/snapshots/$glm53_model_snapshot" \
+  glm53_model_snapshot="$(cat /root/.cache/huggingface/hub/models--RedHatAI--GLM-5.3-Flash-NVFP4/refs/main)"
+  glm53_draft_snapshot="$(cat /root/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/refs/main)"
+  vllm serve "/root/.cache/huggingface/hub/models--RedHatAI--GLM-5.3-Flash-NVFP4/snapshots/$glm53_model_snapshot" \
     --served-model-name glm-5.3-flash \
     --host {host} \
     --port {port} \
@@ -56,12 +64,11 @@ command: |
     --max-num-batched-tokens {max_num_batched_tokens} \
     --block-size {block_size} \
     --moe-backend marlin \
-    --load-format instanttensor \
     --kv-cache-dtype fp8_e4m3 \
     --enforce-eager \
-    --limit-mm-per-prompt '{{"image":8,"video":1}}' \
-    --mm-processor-cache-type lru \
-    --speculative-config '{{"method":"mtp","num_speculative_tokens":{num_speculative_tokens}}}' \
+    --speculative-config '{{"method":"dflash","model":"/root/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/'"$glm53_draft_snapshot"'","num_speculative_tokens":{num_speculative_tokens}}}' \
+    --default-chat-template-kwargs '{{"enable_thinking":false}}' \
+    --chat-template /opt/spark-vllm/glm53/chat_template_mm.jinja \
     --enable-auto-tool-choice \
     --tool-call-parser glm47 \
     --reasoning-parser glm45

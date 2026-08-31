@@ -1360,7 +1360,7 @@ test_qwen38_flash_next_nvfp4_profile() {
     for expected in \
         "Inferact/Qwen3.8-Flash-Next-NVFP4" \
         "--tensor-parallel-size 2" \
-        "--gpu-memory-utilization 0.85" \
+        "--gpu-memory-utilization 0.9" \
         "--enforce-eager" \
         "--reasoning-parser qwen3" \
         "--tool-call-parser qwen3_coder" \
@@ -1375,9 +1375,9 @@ test_qwen38_flash_next_nvfp4_profile() {
         log_verbose "Qwen launch command does not use vllm-node-qwen"
     fi
     if ! echo "$output" | grep -qF -- \
-        "Build args: --rebuild-vllm --vllm-ref 06569a8696076eeae9558928b00f035ded8f8b60 --apply-vllm-pr 53896 --rebuild-flashinfer --flashinfer-ref v0.6.17"; then
+        "Build args: --qwen38-flash-next"; then
         all_passed=false
-        log_verbose "Qwen qualified source-build arguments are missing"
+        log_verbose "Qwen qualified official-base build argument is missing"
     fi
     if ! echo "$output" | grep -qF -- "Cluster only: Yes"; then
         all_passed=false
@@ -1392,7 +1392,7 @@ test_qwen38_flash_next_nvfp4_profile() {
     fi
 }
 
-# Test: GLM-5.3 Flash uses the qualified GB10 image and validated native-MTP profile
+# Test: GLM-5.3 Flash uses the qualified upstream DFlash2 TP2 profile
 test_glm53_flash_nvfp4_profile() {
     log_test "GLM-5.3 Flash NVFP4 qualified TP2 profile"
 
@@ -1412,20 +1412,21 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
     fi
     for expected in \
-        "/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/snapshots/" \
+        "/root/.cache/huggingface/hub/models--RedHatAI--GLM-5.3-Flash-NVFP4/snapshots/" \
+        "/root/.cache/huggingface/hub/models--incoai--GLM-5.3-Flash-DFlash2/snapshots/" \
         "--tensor-parallel-size 2" \
-        "--gpu-memory-utilization 0.89" \
-        "--max-model-len 200000" \
-        "--max-num-seqs 5" \
-        "--max-num-batched-tokens 2048" \
+        "--gpu-memory-utilization 0.85" \
+        "--max-model-len 262144" \
+        "--max-num-seqs 6" \
+        "--max-num-batched-tokens 8192" \
         "--block-size 2304" \
         "--moe-backend marlin" \
-        "--load-format instanttensor" \
         "--kv-cache-dtype fp8_e4m3" \
         "--enforce-eager" \
-        "--limit-mm-per-prompt '{\"image\":8,\"video\":1}'" \
-        "--mm-processor-cache-type lru" \
-        "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":5}'" \
+        "--speculative-config '{\"method\":\"dflash\",\"model\":" \
+        "\"num_speculative_tokens\":7}" \
+        "--default-chat-template-kwargs '{\"enable_thinking\":false}'" \
+        "--chat-template /opt/spark-vllm/glm53/chat_template_mm.jinja" \
         "--reasoning-parser glm45" \
         "--tool-call-parser glm47"; do
         if ! echo "$vllm_cmd" | grep -qF -- "$expected"; then
@@ -1441,7 +1442,14 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
         log_verbose "GLM launch command does not use vllm-node-glm"
     fi
+    if echo "$launch_cmd" | grep -qF -- "--apply-mod mods/glm53-dflash2"; then
+        all_passed=false
+        log_verbose "GLM launch command unexpectedly applies a build-time patch as a runtime mod"
+    fi
     for expected in \
+        "-e TORCH_CUDA_ARCH_LIST=12.1a" \
+        "-e FLASHINFER_CUDA_ARCH_LIST=12.1a" \
+        "-e FLASHINFER_DISABLE_VERSION_CHECK=1" \
         "-e NCCL_CUMEM_ENABLE=0" \
         "-e NCCL_NVLS_ENABLE=0" \
         "-e NCCL_CROSS_NIC=0" \
@@ -1463,7 +1471,7 @@ test_glm53_flash_nvfp4_profile() {
     fi
 
     if [[ "$all_passed" == "true" ]]; then
-        log_pass "GLM-5.3 Flash uses the qualified TP2 native-MTP profile"
+        log_pass "GLM-5.3 Flash uses the qualified upstream DFlash2 TP2 profile"
     else
         log_fail "GLM-5.3 Flash qualified TP2 profile is incomplete"
         log_verbose "$output"

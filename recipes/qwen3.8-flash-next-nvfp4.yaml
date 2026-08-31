@@ -20,14 +20,7 @@ env:
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
 
 build_args:
-  - --rebuild-vllm
-  - --vllm-ref
-  - 06569a8696076eeae9558928b00f035ded8f8b60
-  - --apply-vllm-pr
-  - "53896"
-  - --rebuild-flashinfer
-  - --flashinfer-ref
-  - v0.6.17
+  - --qwen38-flash-next
 
 defaults:
   port: 54351

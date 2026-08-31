@@ -48,6 +48,12 @@ setup_fixture() {
     cp "$PROJECT_DIR/build-and-copy.sh" "$FIXTURE_DIR/"
     cp "$PROJECT_DIR/autodiscover.sh" "$FIXTURE_DIR/"
     cp "$PROJECT_DIR/Dockerfile" "$FIXTURE_DIR/"
+    if [ -f "$PROJECT_DIR/Dockerfile.glm53-dflash2" ]; then
+        cp "$PROJECT_DIR/Dockerfile.glm53-dflash2" "$FIXTURE_DIR/"
+    fi
+    if [ -f "$PROJECT_DIR/Dockerfile.qwen38-flash-next" ]; then
+        cp "$PROJECT_DIR/Dockerfile.qwen38-flash-next" "$FIXTURE_DIR/"
+    fi
     cp "$PROJECT_DIR/Dockerfile.mxfp4" "$FIXTURE_DIR/"
     cp -a "$PROJECT_DIR/docker" "$FIXTURE_DIR/"
     mkdir -p \
@@ -247,19 +253,43 @@ test_tf5_uses_prebuilt_tf5_tag() {
     pass "--tf5 pulls prebuilt image under vllm-node-tf5"
 }
 
-test_glm53_gb10_profile_forwards_runner_patch_mode() {
+test_qwen38_flash_next_builds_from_official_base() {
+    setup_fixture
+    run_build --qwen38-flash-next || fail "--qwen38-flash-next run failed"
+    assert_log_not_contains '^docker pull '
+    assert_log_contains '^docker build -f Dockerfile\.qwen38-flash-next -t vllm-node-qwen '
+    assert_log_not_contains '^docker build --target (flashinfer-export|vllm-export) '
+    if [ "$(sed -n '1p' "$PROJECT_DIR/Dockerfile.qwen38-flash-next")" != \
+         'FROM vllm/vllm-openai:qwen38-flash-next' ]; then
+        fail "Qwen3.8 Flash Next build does not use the official model base image"
+    fi
+    pass "--qwen38-flash-next locally builds from the official Qwen base"
+}
+
+test_qwen38_flash_next_rejects_source_build_overrides() {
+    setup_fixture
+    if run_build --qwen38-flash-next --vllm-ref main; then
+        fail "--qwen38-flash-next unexpectedly accepted --vllm-ref"
+    fi
+    assert_log_not_contains '^docker (build|pull) '
+    assert_output_contains 'Error: --qwen38-flash-next is incompatible with vLLM source-build overrides'
+
+    setup_fixture
+    if run_build --qwen38-flash-next --rebuild-flashinfer; then
+        fail "--qwen38-flash-next unexpectedly accepted --rebuild-flashinfer"
+    fi
+    assert_log_not_contains '^docker (build|pull) '
+    assert_output_contains 'Error: --qwen38-flash-next is incompatible with FlashInfer overrides'
+    pass "--qwen38-flash-next rejects source-build overrides"
+}
+
+test_glm53_gb10_profile_builds_qualified_dflash2_image() {
     setup_fixture
     run_build --glm53-gb10 || fail "--glm53-gb10 run failed"
     assert_log_not_contains '^docker pull '
-    assert_log_not_contains '^docker build --target flashinfer-export '
-    assert_log_contains '^docker build --target vllm-export .*--build-arg VLLM_REF=06569a8696076eeae9558928b00f035ded8f8b60 .*--build-arg VLLM_PRS=53906@878631b6079d2cf9fb80830ef9cb41b43aded098'
-    assert_log_contains '^docker build -t vllm-node-glm .*--build-arg GLM53_GB10=1 '
-    assert_metadata_contains '^flashinfer_commit: not-applicable$'
-    assert_metadata_contains '^flashinfer_version: "0\.6\.18\.dev20260819"$'
-    assert_metadata_contains '^flashinfer_source: "https://flashinfer\.ai/whl/nightly/"$'
-    assert_metadata_contains '^  cutlass_dsl_version: "4\.6\.2"$'
-    assert_metadata_not_contains '^  cutlass_dsl_version: "4\.7\.0"$'
-    pass "--glm53-gb10 builds the qualified GLM53 GB10 runner profile"
+    assert_log_contains '^docker build -f Dockerfile\.glm53-dflash2 -t vllm-node-glm '
+    assert_log_not_contains '^docker build --target (flashinfer-export|vllm-export) '
+    pass "--glm53-gb10 locally builds the qualified upstream DFlash2 image"
 }
 
 test_glm53_gb10_rejects_qualified_profile_overrides() {
@@ -1111,92 +1141,6 @@ test_dockerfile_uses_configurable_torch_versions() {
     pass "Dockerfile uses configurable Torch package versions in build and runner stages"
 }
 
-test_dockerfile_installs_qualified_glm53_runner_stack() {
-    local previous_line=0
-    local current_line
-    local expected
-
-    for expected in \
-        'ARG GLM53_GB10=0' \
-        'COPY mods/glm53-gb10 /opt/spark-vllm/mods/glm53-gb10' \
-        'if [ "$GLM53_GB10" = "1" ]; then' \
-        '"flashinfer-python==0.6.18.dev20260819"' \
-        '"flashinfer-cubin==0.6.18.dev20260819"' \
-        '--index-url https://flashinfer.ai/whl/nightly/' \
-        'uv pip uninstall flashinfer-jit-cache' \
-        '"nvidia-nccl-cu13==2.30.7"' \
-        '"nvidia-cutlass-dsl==4.6.2"' \
-        '/opt/spark-vllm/mods/glm53-gb10/apply.sh'; do
-        current_line=$(grep -Fn -- "$expected" "$PROJECT_DIR/Dockerfile" | head -1 | cut -d: -f1 || true)
-        if [ -z "$current_line" ]; then
-            fail "Dockerfile is missing qualified GLM53 runner step: $expected"
-        fi
-        if [ "$current_line" -le "$previous_line" ]; then
-            fail "Dockerfile GLM53 runner steps are out of order at: $expected"
-        fi
-        previous_line="$current_line"
-    done
-    pass "Dockerfile installs and patches the qualified GLM53 runner stack"
-}
-
-test_glm53_patch_normalizes_fp8_kv_storage_dtype_for_flashinfer() {
-    local patch="$PROJECT_DIR/mods/glm53-gb10/apply.sh"
-
-    for expected in \
-        'kv_dtype = (' \
-        'torch.float8_e4m3fn' \
-        'if kv_cache_spec.dtype == torch.uint8' \
-        'kv_dtype,'; do
-        if ! grep -Fq -- "$expected" "$patch"; then
-            fail "GLM53 patch is missing FP8 KV dtype normalization: $expected"
-        fi
-    done
-    pass "GLM53 patch normalizes uint8 FP8 KV storage for FlashInfer"
-}
-
-test_glm53_patch_defers_mixed_prefill_while_decoding() {
-    local patch="$PROJECT_DIR/mods/glm53-gb10/apply.sh"
-    for expected in \
-        'GLM53_MIXED_PREFILL_CHUNK' \
-        '_glm53_mixed_prefill_policy' \
-        'step_skipped_waiting.prepend_request(request)' \
-        'GLM mixed-prefill decode floor applied'; do
-        if ! grep -Fq -- "$expected" "$patch"; then
-            fail "GLM53 patch is missing mixed-prefill protection: $expected"
-        fi
-    done
-    pass "GLM53 patch defers mixed prefill while decoding"
-}
-
-test_glm53_patch_excludes_unsafe_mtp_mixed_warmup() {
-    local patch="$PROJECT_DIR/mods/glm53-gb10/apply.sh"
-
-    for expected in \
-        'v1/worker/gpu/warmup.py' \
-        'model_type == "glm5next"' \
-        'not (is_glm5_mtp and use_spec_decode)' \
-        'GLM MTP mixed warmup excluded on GB10'; do
-        if ! grep -Fq -- "$expected" "$patch"; then
-            fail "GLM53 patch is missing MTP mixed-warmup exclusion: $expected"
-        fi
-    done
-    pass "GLM53 patch excludes unsafe MTP mixed warmup on GB10"
-}
-
-test_glm53_patch_disables_tilelang_mhc_on_gb10() {
-    local patch_file="mods/glm53-gb10/apply.sh"
-    for expected in \
-        'unexpected TileLang MHC CUDA gate' \
-        'return major not in (12,)' \
-        'TileLang MHC is unvalidated on SM12x (GB10)' \
-        'TileLang MHC disabled on SM12x'; do
-        if ! grep -Fq "$expected" "$patch_file"; then
-            fail "GLM53 patch is missing GB10 TileLang MHC fallback: $expected"
-        fi
-    done
-    pass "GLM53 patch uses native MHC fallback on GB10"
-}
-
 test_dockerfile_pins_cutlass_dsl_47_everywhere() {
     for expected in \
         'ARG CUTLASS_DSL_VERSION=4.7.0' \
@@ -1402,7 +1346,9 @@ for path in files:
 
 test_default_uses_prebuilt
 test_tf5_uses_prebuilt_tf5_tag
-test_glm53_gb10_profile_forwards_runner_patch_mode
+test_qwen38_flash_next_builds_from_official_base
+test_qwen38_flash_next_rejects_source_build_overrides
+test_glm53_gb10_profile_builds_qualified_dflash2_image
 test_glm53_gb10_rejects_qualified_profile_overrides
 test_custom_tag_uses_prebuilt_custom_tag
 test_default_gpu_arch_stays_prebuilt
@@ -1459,11 +1405,6 @@ test_local_inference_lab_b12x_requires_torch_212
 test_dockerfile_custom_repo_bypasses_shared_cache
 test_dockerfile_accepts_local_vllm_context
 test_dockerfile_uses_configurable_torch_versions
-test_dockerfile_installs_qualified_glm53_runner_stack
-test_glm53_patch_normalizes_fp8_kv_storage_dtype_for_flashinfer
-test_glm53_patch_defers_mixed_prefill_while_decoding
-test_glm53_patch_excludes_unsafe_mtp_mixed_warmup
-test_glm53_patch_disables_tilelang_mhc_on_gb10
 test_dockerfile_pins_cutlass_dsl_47_everywhere
 test_dockerfile_uses_profiled_named_wheel_contexts
 test_dockerfile_builds_and_verifies_b12x_source

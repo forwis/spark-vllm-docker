@@ -36,12 +36,7 @@ EXP_B12X=false
 EXP_B12X_VLLM_REPO="https://github.com/local-inference-lab/vllm"
 EXP_B12X_VLLM_REF="dev/infernal-invocation"
 GLM53_GB10=false
-GLM53_GB10_VLLM_REF="06569a8696076eeae9558928b00f035ded8f8b60"
-GLM53_GB10_VLLM_PR="53906"
-GLM53_GB10_VLLM_PR_COMMIT="878631b6079d2cf9fb80830ef9cb41b43aded098"
-GLM53_GB10_FLASHINFER_VERSION="0.6.18.dev20260819"
-GLM53_GB10_FLASHINFER_SOURCE="https://flashinfer.ai/whl/nightly/"
-GLM53_GB10_CUTLASS_DSL_VERSION="4.6.2"
+QWEN38_FLASH_NEXT=false
 B12X_PACKAGE_REPO="https://github.com/lukealonso/b12x.git"
 B12X_PACKAGE_REF="master"
 EXP_B12X_TORCH_VERSION="2.13.0"
@@ -632,7 +627,8 @@ usage() {
     echo "  --tf5                         : Deprecated compatibility flag; tag defaults to 'vllm-node-tf5' (aliases: --pre-tf, --pre-transformers)"
     echo "  --exp-mxfp4, --experimental-mxfp4 : Build with experimental native MXFP4 support"
     echo "  --exp-b12x, --experimental-b12x   : Select B12X; pulls its prebuilt image unless a local wheel/image build is requested"
-    echo "  --glm53-gb10                 : Build the qualified GLM-5.3 GB10 vLLM and runner profile"
+    echo "  --glm53-gb10                 : Build the qualified GLM-5.3 GB10 DFlash2 image"
+    echo "  --qwen38-flash-next          : Build Qwen3.8 Flash Next from the official vLLM base image"
     echo "  --apply-vllm-pr <pr-num>      : Apply a specific PR patch to vLLM source. Can be specified multiple times."
     echo "  --apply-preset-vllm-prs       : Apply preset vLLM PRs even with --vllm-repo, --vllm-ref, or --apply-vllm-pr."
     echo "  --apply-flashinfer-pr <pr-num>: Apply a specific PR patch to FlashInfer source. Can be specified multiple times."
@@ -729,6 +725,7 @@ while [[ "$#" -gt 0 ]]; do
         --exp-mxfp4|--experimental-mxfp4) EXP_MXFP4=true ;;
         --exp-b12x|--experimental-b12x) EXP_B12X=true ;;
         --glm53-gb10) GLM53_GB10=true ;;
+        --qwen38-flash-next) QWEN38_FLASH_NEXT=true ;;
         --apply-vllm-pr)
             if [ -n "$2" ] && [[ "$2" != -* ]]; then
                if [ -n "$VLLM_PRS" ]; then
@@ -776,14 +773,30 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# The GLM-5.3 GB10 profile owns the exact vLLM source and runner dependency
-# inputs qualified by its vendored runtime patches. FlashInfer is replaced by
-# pinned nightly wheels in the runner stage, so source-build overrides are not
-# accepted here.
+# The official Qwen3.8 Flash Next base owns the vLLM and FlashInfer stack.
+# Source-build overrides would silently replace that qualified combination.
+if [ "$QWEN38_FLASH_NEXT" = true ]; then
+    if [ "$REBUILD_VLLM" = true ] || [ "$VLLM_REPO_SET" = true ] || \
+       [ "$VLLM_SOURCE_DIR_SET" = true ] || [ "$VLLM_REF_SET" = true ] || \
+       [ -n "$VLLM_PRS" ] || [ "$APPLY_PRESET_VLLM_PRS" = true ]; then
+        echo "Error: --qwen38-flash-next is incompatible with vLLM source-build overrides"
+        exit 1
+    fi
+    if [ "$REBUILD_FLASHINFER" = true ] || [ "$FLASHINFER_REF_SET" = true ] || \
+       [ -n "$FLASHINFER_PRS" ] || [ "$FORCE_FLASHINFER_DOWNLOAD" = true ]; then
+        echo "Error: --qwen38-flash-next is incompatible with FlashInfer overrides"
+        exit 1
+    fi
+fi
+
+# The GLM-5.3 GB10 profile locally reproduces the qualified reference image's
+# exact base and patch chain. Overrides would silently turn it into a different,
+# unvalidated dependency combination.
 if [ "$GLM53_GB10" = true ]; then
     if [ "$EXP_MXFP4" = true ]; then echo "Error: --glm53-gb10 is incompatible with --exp-mxfp4"; exit 1; fi
     if [ "$EXP_B12X" = true ]; then echo "Error: --glm53-gb10 is incompatible with --exp-b12x"; exit 1; fi
-    if [ "$USE_WHEELS" = true ]; then echo "Error: --glm53-gb10 is incompatible with --use-wheels because its pinned vLLM source must be compiled"; exit 1; fi
+    if [ "$USE_WHEELS" = true ]; then echo "Error: --glm53-gb10 is incompatible with --use-wheels because it has a dedicated image build"; exit 1; fi
+    if [ "$REBUILD_VLLM" = true ]; then echo "Error: --glm53-gb10 is incompatible with --rebuild-vllm"; exit 1; fi
     if [ "$VLLM_REPO_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --vllm-repo"; exit 1; fi
     if [ "$VLLM_SOURCE_DIR_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --vllm-source-dir"; exit 1; fi
     if [ "$VLLM_REF_SET" = true ]; then echo "Error: --glm53-gb10 is incompatible with --vllm-ref"; exit 1; fi
@@ -803,12 +816,6 @@ if [ "$GLM53_GB10" = true ]; then
         exit 1
     fi
 
-    VLLM_REF="$GLM53_GB10_VLLM_REF"
-    VLLM_REF_SET=true
-    # Pin the qualified GLM source revision. PR heads are mutable and would
-    # otherwise silently change this locked GB10 profile.
-    VLLM_PRS="${GLM53_GB10_VLLM_PR}@${GLM53_GB10_VLLM_PR_COMMIT}"
-    REBUILD_VLLM=true
 fi
 
 # The B12X preset uses the standard Dockerfile and source-build path, but owns
@@ -867,6 +874,8 @@ if [ "$IMAGE_TAG_SET" = false ]; then
         IMAGE_TAG="vllm-node-b12x"
     elif [ "$GLM53_GB10" = true ]; then
         IMAGE_TAG="vllm-node-glm"
+    elif [ "$QWEN38_FLASH_NEXT" = true ]; then
+        IMAGE_TAG="vllm-node-qwen"
     fi
 fi
 
@@ -1069,7 +1078,9 @@ if [ "$VLLM_ARCH_MISMATCH" = true ] && \
 fi
 
 USE_PREBUILT_IMAGE=false
-if [ "$NO_BUILD" = false ] && [ "$USE_WHEELS" = false ] && [ "$CUSTOM_BUILD_REQUESTED" = false ]; then
+if [ "$NO_BUILD" = false ] && [ "$USE_WHEELS" = false ] && \
+   [ "$CUSTOM_BUILD_REQUESTED" = false ] && [ "$GLM53_GB10" = false ] && \
+   [ "$QWEN38_FLASH_NEXT" = false ]; then
     USE_PREBUILT_IMAGE=true
 fi
 
@@ -1094,7 +1105,8 @@ if [[ "$CLEANUP_MODE" == "true" ]]; then
 fi
 
 # Ensure the selected named-context directories exist for local builds.
-if [ "$NO_BUILD" = false ] && [ "$USE_PREBUILT_IMAGE" != true ]; then
+if [ "$NO_BUILD" = false ] && [ "$USE_PREBUILT_IMAGE" != true ] && \
+   [ "$GLM53_GB10" = false ] && [ "$QWEN38_FLASH_NEXT" = false ]; then
     mkdir -p "$FLASHINFER_WHEELS_DIR" "$VLLM_WHEELS_DIR"
     echo "Using FlashInfer wheel profile: $FLASHINFER_PROFILE ($FLASHINFER_WHEELS_DIR)"
     echo "Using vLLM wheel profile: $VLLM_PROFILE ($VLLM_WHEELS_DIR)"
@@ -1129,7 +1141,39 @@ RUNNER_BUILD_TIME=0
 PREBUILT_PULL_TIME=0
 
 if [ "$NO_BUILD" = false ]; then
-    if [ "$USE_PREBUILT_IMAGE" = true ]; then
+    if [ "$QWEN38_FLASH_NEXT" = true ]; then
+        QWEN38_CMD=("docker" "build" "-f" "Dockerfile.qwen38-flash-next" "-t" "$IMAGE_TAG")
+        if [ "$FULL_LOG" = true ]; then
+            QWEN38_CMD+=("--progress=plain")
+        fi
+        if [ -n "$NETWORK_ARG" ]; then
+            QWEN38_CMD+=("--network" "$NETWORK_ARG")
+        fi
+        QWEN38_CMD+=("--build-arg" "BUILD_JOBS=$BUILD_JOBS")
+        QWEN38_CMD+=("--build-arg" "TORCH_CUDA_ARCH_LIST=$GPU_ARCH_LIST")
+        QWEN38_CMD+=("--build-arg" "FLASHINFER_CUDA_ARCH_LIST=$GPU_ARCH_LIST" ".")
+
+        echo "Building qualified Qwen3.8 Flash Next image with command: ${QWEN38_CMD[*]}"
+        RUNNER_START=$(date +%s)
+        "${QWEN38_CMD[@]}"
+        RUNNER_END=$(date +%s)
+        RUNNER_BUILD_TIME=$((RUNNER_END - RUNNER_START))
+    elif [ "$GLM53_GB10" = true ]; then
+        GLM53_CMD=("docker" "build" "-f" "Dockerfile.glm53-dflash2" "-t" "$IMAGE_TAG")
+        if [ "$FULL_LOG" = true ]; then
+            GLM53_CMD+=("--progress=plain")
+        fi
+        if [ -n "$NETWORK_ARG" ]; then
+            GLM53_CMD+=("--network" "$NETWORK_ARG")
+        fi
+        GLM53_CMD+=("--build-arg" "BUILD_JOBS=$BUILD_JOBS" ".")
+
+        echo "Building qualified GLM-5.3 DFlash2 image with command: ${GLM53_CMD[*]}"
+        RUNNER_START=$(date +%s)
+        "${GLM53_CMD[@]}"
+        RUNNER_END=$(date +%s)
+        RUNNER_BUILD_TIME=$((RUNNER_END - RUNNER_START))
+    elif [ "$USE_PREBUILT_IMAGE" = true ]; then
         echo "Using prebuilt runner image ${PREBUILT_RUNNER_IMAGE}..."
         if [ -n "$NETWORK_ARG" ]; then
             echo "Warning: --network is only used for Docker builds; ignoring it while pulling ${PREBUILT_RUNNER_IMAGE}."
@@ -1365,12 +1409,6 @@ if [ "$NO_BUILD" = false ]; then
         FLASHINFER_METADATA_VERSION="unknown"
         FLASHINFER_METADATA_SOURCE="wheel-cache:$FLASHINFER_PROFILE"
         CUTLASS_DSL_METADATA_VERSION="$CUTLASS_DSL_VERSION"
-        if [ "$GLM53_GB10" = true ]; then
-            FLASHINFER_METADATA_COMMIT="not-applicable"
-            FLASHINFER_METADATA_VERSION="$GLM53_GB10_FLASHINFER_VERSION"
-            FLASHINFER_METADATA_SOURCE="$GLM53_GB10_FLASHINFER_SOURCE"
-            CUTLASS_DSL_METADATA_VERSION="$GLM53_GB10_CUTLASS_DSL_VERSION"
-        fi
         generate_build_metadata Dockerfile "$VLLM_VERSION" "$VLLM_COMMIT" "$FLASHINFER_METADATA_COMMIT" \
             "$VLLM_REF" "true" "false" "$VLLM_PRS" "$VLLM_REPO" "$TORCH_VERSION" \
             "${TORCHVISION_VERSION:-resolver-selected}" "${TORCHAUDIO_VERSION:-resolver-selected}" \
@@ -1387,10 +1425,6 @@ if [ "$NO_BUILD" = false ]; then
             RUNNER_CMD+=("--build-arg" "B12X_REPO=$B12X_REPO")
             RUNNER_CMD+=("--build-arg" "B12X_REF=$B12X_REF")
             RUNNER_CMD+=("--build-arg" "B12X_CACHEBUST=$B12X_CACHEBUST")
-        fi
-
-        if [ "$GLM53_GB10" = true ]; then
-            RUNNER_CMD+=("--build-arg" "GLM53_GB10=1")
         fi
 
         RUNNER_CMD+=(".")
