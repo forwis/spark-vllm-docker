@@ -60,7 +60,7 @@ log_verbose() {
 get_recipe_flag() {
     local flag_name="$1"
     local recipe_file="$2"
-    grep -E "^${flag_name}:" "$recipe_file" | awk '{print $2}'
+    grep -E "^${flag_name}:" "$recipe_file" | awk '{print $2}' | tr -d '\r'
 }
 
 find_solo_recipe() {
@@ -260,8 +260,8 @@ test_all_recipes_load() {
     for recipe in "$PROJECT_DIR/recipes/"*.yaml; do
         if [[ -f "$recipe" ]]; then
             recipe_name=$(basename "$recipe" .yaml)
-            cluster_only=$(grep -E "^cluster_only:" "$recipe" | awk '{print $2}')
-            solo_only=$(grep -E "^solo_only:" "$recipe" | awk '{print $2}')
+            cluster_only=$(get_recipe_flag "cluster_only" "$recipe")
+            solo_only=$(get_recipe_flag "solo_only" "$recipe")
             
             if [[ "$cluster_only" == "true" && "$solo_only" == "true" ]]; then
                 log_verbose "$recipe_name has conflicting cluster_only + solo_only"

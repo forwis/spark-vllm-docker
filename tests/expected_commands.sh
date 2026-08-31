@@ -23,7 +23,7 @@ GLM_FLASH_AWQ_ARGS=(
     "--max-num-batched-tokens 4096"
     "--max-num-seqs 64"
     "--gpu-memory-utilization 0.8"
-    "--port 8000"
+    "--port 54351"
     "--host 0.0.0.0"
 )
 
@@ -34,7 +34,7 @@ GLM_FLASH_AWQ_ARGS=(
 GPT_OSS_MODEL="openai/gpt-oss-120b"
 GPT_OSS_CONTAINER="vllm-node-mxfp4"
 GPT_OSS_ARGS=(
-    "--port 8000"
+    "--port 54351"
     "--host 0.0.0.0"
     "--enable-auto-tool-choice"
     "--tool-call-parser openai"
@@ -57,11 +57,11 @@ GPT_OSS_ARGS=(
 MINIMAX_MODEL="QuantTrio/MiniMax-M2-AWQ"
 MINIMAX_CONTAINER="vllm-node"
 MINIMAX_ARGS=(
-    "--port 8000"
+    "--port 54351"
     "--host 0.0.0.0"
     "--gpu-memory-utilization 0.8"
     "--max-model-len 128000"
-    "--load-format fastsafetensors"
+    "--load-format instanttensor"
     "--enable-auto-tool-choice"
     "--tool-call-parser minimax_m2"
     "--reasoning-parser minimax_m2"
