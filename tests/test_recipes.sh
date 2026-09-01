@@ -1535,6 +1535,105 @@ test_glm53_flash_nvfp4_profile() {
     fi
 }
 
+# Test: DSv4 Vision-Exp uses the qualified local JASL v2/FlashInfer TP2 profile
+test_dsv4f_vision_exp_profile() {
+    log_test "DSv4 Vision-Exp qualified JASL v2 TP2 profile"
+
+    local output
+    local status
+    local vllm_cmd
+    local launch_cmd
+    local all_passed=true
+
+    output=$("$PROJECT_DIR/run-recipe.py" deepseek-v4-flash-vision-exp \
+        --config /dev/null --dry-run -n "10.0.0.1,10.0.0.2" 2>&1)
+    status=$?
+    vllm_cmd=$(extract_vllm_command "$output")
+    launch_cmd=$(extract_launch_cmd "$output")
+
+    if [[ $status -ne 0 ]]; then
+        all_passed=false
+    fi
+
+    local required_vllm_args=(
+        "vllm serve deepseek-ai/DeepSeek-V4-Flash-Vision-Exp"
+        "--served-model-name deepseek-v4-flash-vision-exp"
+        "--tensor-parallel-size 2"
+        "--gpu-memory-utilization 0.835"
+        "--kv-cache-dtype fp8_ds_mla"
+        "--block-size 256"
+        "--max-model-len 1048576"
+        "--max-num-seqs 6"
+        "--max-num-batched-tokens 8192"
+        "--long-prefill-token-threshold 1024"
+        "--enable-prefix-caching"
+        "--enable-chunked-prefill"
+        "--async-scheduling"
+        "--limit-mm-per-prompt '{\"image\":8}'"
+        "--hf-overrides '{\"architectures\":[\"DeepseekV4VForConditionalGeneration\"],\"is_mm_prefix_lm\":true}'"
+        "--speculative-config '{\"method\":\"dspark\",\"num_speculative_tokens\":6,\"draft_sample_method\":\"probabilistic\"}'"
+        "--tokenizer-mode deepseek_v4"
+        "--tool-call-parser deepseek_v4"
+        "--reasoning-parser deepseek_v4"
+        "--generation-config vllm"
+    )
+    for expected in "${required_vllm_args[@]}"; do
+        if ! echo "$vllm_cmd" | grep -qF -- "$expected"; then
+            all_passed=false
+            log_verbose "Missing Vision-Exp command argument: $expected"
+        fi
+    done
+
+    if ! echo "$launch_cmd" | grep -qF -- "-t vllm-node-dsv4f:v2"; then
+        all_passed=false
+        log_verbose "Vision-Exp launch command does not use vllm-node-dsv4f:v2"
+    fi
+    if ! echo "$launch_cmd" | grep -qF -- "--apply-mod mods/dsv4f-vision-exp"; then
+        all_passed=false
+        log_verbose "Vision-Exp launch command does not apply its runtime mod"
+    fi
+    for expected in \
+        "Cluster only: Yes" \
+        "Build args: --vllm-repo https://github.com/jasl/vllm.git" \
+        "--vllm-ref 9ad62027bc84ca0ccbcc40853179312de770220c" \
+        "--flashinfer-ref a0a6b019b9b27d49d209f85d028a1ae5a9b347d7"; do
+        if ! echo "$output" | grep -qF -- "$expected"; then
+            all_passed=false
+            log_verbose "Missing Vision-Exp recipe metadata: $expected"
+        fi
+    done
+
+    for unexpected in \
+        "nvfp4_ds_mla" \
+        "--exp-b12x" \
+        "Anemll" \
+        "MiaAI" \
+        "--distributed-executor-backend" \
+        "--nnodes" \
+        "--node-rank" \
+        "--master-addr" \
+        "--master-port" \
+        "--headless"; do
+        if echo "$vllm_cmd" | grep -qF -- "$unexpected"; then
+            all_passed=false
+            log_verbose "Vision-Exp vLLM command unexpectedly includes: $unexpected"
+        fi
+    done
+
+    if ! grep -qF -- "container: vllm-node-dsv4f:v2" \
+        "$PROJECT_DIR/recipes/deepseek-v4-flash-0731-jasl.yaml"; then
+        all_passed=false
+        log_verbose "0731 JASL recipe does not use the v2 container tag"
+    fi
+
+    if [[ "$all_passed" == "true" ]]; then
+        log_pass "DSv4 Vision-Exp uses the qualified JASL v2 TP2 profile"
+    else
+        log_fail "DSv4 Vision-Exp qualified JASL v2 TP2 profile is incomplete"
+        log_verbose "$output"
+    fi
+}
+
 # ==============================================================================
 # Extra vLLM Arguments Tests (-- pass-through)
 # Tests for GitHub issue #30: ability to pass arbitrary vLLM arguments
@@ -1836,6 +1935,7 @@ main() {
     test_readme_glm_flash_cluster
     test_qwen38_flash_next_nvfp4_profile
     test_glm53_flash_nvfp4_profile
+    test_dsv4f_vision_exp_profile
     echo ""
     
     # launch-cluster.sh tests
