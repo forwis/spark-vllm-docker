@@ -96,6 +96,12 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
                         )
                         self._sync_fused_moe_metadata()
 
+                    def forward(self, hidden_states, input_ids=None):
+                        if self.gate.tid2eid is not None and input_ids is None:
+                            raise ValueError("input_ids required")
+                        if not self.use_mega_moe:
+                            return self._forward_fused_moe(hidden_states, input_ids)
+
                     def _sync_fused_moe_metadata(self):
                         pass
 
@@ -184,7 +190,15 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
         self.assertIn("WINDOW_SIZE", self.read("models/deepseek_v4/common/ops/cache_utils.py"))
         self.assertIn("def compute_vision_visible_window", self.read("models/deepseek_v4/common/ops/cache_utils.py"))
         self.assertIn("model_vocab_size + 4", self.read("v1/engine/input_processor.py"))
-        self.assertIn(".ffn.gate.e_score_correction_bias_vl", self.read("models/deepseek_v4/nvidia/dspark.py"))
+        model = self.read("models/deepseek_v4/nvidia/model.py")
+        self.assertIn("self.gate.bias_vl = None", model)
+        self.assertIn("input_ids = torch.where(", model)
+        self.assertIn("if not self.use_mega_moe:", model)
+        self.assertNotIn('".ffn.gate.bias_vl": ".ffn.gate.e_score_correction_bias_vl"', model)
+        dspark = self.read("models/deepseek_v4/nvidia/dspark.py")
+        self.assertIn('name.endswith(".ffn.gate.bias_vl")', dspark)
+        self.assertIn("if name not in params_dict", dspark)
+        self.assertNotIn("e_score_correction_bias_vl", dspark)
 
         before = self.hash_tree(self.root)
         self.assertEqual(PATCHER.patch_tree(self.root, overlay), [])

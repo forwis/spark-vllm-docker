@@ -150,7 +150,14 @@ def patch_model(text: str) -> str:
     relative = "models/deepseek_v4/nvidia/model.py"
     marker = "# dsv4f-vision-exp: Vision gate state"
     if marker in text:
-        return _compiled(text, relative, marker, "_router.bias_vl = self.gate.bias_vl", "e_score_correction_bias_vl")
+        return _compiled(
+            text,
+            relative,
+            marker,
+            "self.gate.bias_vl = None",
+            "_router.bias_vl = self.gate.bias_vl",
+            "input_ids = torch.where(",
+        )
     result = replace_once(
         text,
         '''        self.gate.e_score_correction_bias = None
@@ -199,21 +206,42 @@ def patch_model(text: str) -> str:
     )
     result = replace_once(
         result,
-        '''            ".ffn.gate.bias": ".ffn.gate.e_score_correction_bias",
+        '''        if not self.use_mega_moe:
 ''',
-        '''            ".ffn.gate.bias": ".ffn.gate.e_score_correction_bias",
-            ".ffn.gate.bias_vl": ".ffn.gate.e_score_correction_bias_vl",
+        '''        # Image sentinel ids are outside the hash table's vocabulary.
+        # Keep this replacement branch-free for torch.compile and the
+        # qualified mega-MoE path; non-mega routing receives raw ids.
+        image_mask = None
+        if input_ids is not None and getattr(self.gate, "bias_vl", None) is not None:
+            image_mask = input_ids >= self.vl_vocab_size
+            input_ids = torch.where(
+                image_mask, torch.zeros_like(input_ids), input_ids)
+
+        if not self.use_mega_moe:
 ''',
-        "Vision weights mapper suffix",
+        "mega-MoE image sentinel guard",
     )
-    return _compiled(result, relative, marker, "_router.bias_vl = self.gate.bias_vl", "e_score_correction_bias_vl")
+    return _compiled(
+        result,
+        relative,
+        marker,
+        "self.gate.bias_vl = None",
+        "_router.bias_vl = self.gate.bias_vl",
+        "input_ids = torch.where(",
+    )
 
 
 def patch_dspark(text: str) -> str:
     relative = "models/deepseek_v4/nvidia/dspark.py"
     marker = "# dsv4f-vision-exp: DSpark modality-specific gate bias"
     if marker in text:
-        return _compiled(text, relative, marker, ".ffn.gate.e_score_correction_bias_vl", "if name not in params_dict")
+        return _compiled(
+            text,
+            relative,
+            marker,
+            'name.endswith(".ffn.gate.bias_vl")',
+            "if name not in params_dict",
+        )
     old = '''                if name.endswith(".ffn.gate.bias"):
                     name = name.replace(
                         ".ffn.gate.bias",
@@ -223,10 +251,7 @@ def patch_dspark(text: str) -> str:
 '''
     new = '''                # dsv4f-vision-exp: DSpark modality-specific gate bias
                 if name.endswith(".ffn.gate.bias_vl"):
-                    name = name.replace(
-                        ".ffn.gate.bias_vl",
-                        ".ffn.gate.e_score_correction_bias_vl",
-                    )
+                    pass
                 elif name.endswith(".ffn.gate.bias"):
                     name = name.replace(
                         ".ffn.gate.bias",
@@ -236,7 +261,13 @@ def patch_dspark(text: str) -> str:
                     continue
                 param = params_dict[name]
 '''
-    return _compiled(replace_once(text, old, new, "dspark bias loader"), relative, marker, ".ffn.gate.e_score_correction_bias_vl", "if name not in params_dict")
+    return _compiled(
+        replace_once(text, old, new, "dspark bias loader"),
+        relative,
+        marker,
+        'name.endswith(".ffn.gate.bias_vl")',
+        "if name not in params_dict",
+    )
 
 
 def patch_input_processor(text: str) -> str:
