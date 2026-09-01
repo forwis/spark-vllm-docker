@@ -211,6 +211,18 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
         self.assertEqual(len(expected), 9)
         self.assertEqual(self.hash_tree(root), before)
 
+    def test_nonmega_forward_keeps_raw_ids_before_mega_guard(self):
+        self.root, overlay = self.make_fixture()
+        PATCHER.patch_tree(self.root, overlay)
+        model = self.read("models/deepseek_v4/nvidia/model.py")
+        raw_return = model.index("return self._forward_fused_moe(hidden_states, input_ids)")
+        masked_ids = model.index("input_ids = torch.where(")
+        self.assertLess(raw_return, masked_ids)
+        router = self.read(
+            "model_executor/layers/fused_moe/router/fused_topk_bias_router.py"
+        )
+        self.assertIn("image_mask = input_ids >= self.vl_vocab_size", router)
+
     def test_unknown_anchor_fails_without_partial_writes(self):
         root, overlay = self.make_fixture()
         target = root / "models/deepseek_v4/nvidia/dspark.py"

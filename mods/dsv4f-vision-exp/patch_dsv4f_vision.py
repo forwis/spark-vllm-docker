@@ -207,17 +207,20 @@ def patch_model(text: str) -> str:
     result = replace_once(
         result,
         '''        if not self.use_mega_moe:
+            return self._forward_fused_moe(hidden_states, input_ids)
+
 ''',
-        '''        # Image sentinel ids are outside the hash table's vocabulary.
-        # Keep this replacement branch-free for torch.compile and the
-        # qualified mega-MoE path; non-mega routing receives raw ids.
+        '''        if not self.use_mega_moe:
+            return self._forward_fused_moe(hidden_states, input_ids)
+
+        # Image sentinel ids are outside the hash table's vocabulary.
+        # Keep this replacement branch-free for torch.compile on the
+        # qualified mega-MoE path; non-mega routing already returned raw ids.
         image_mask = None
         if input_ids is not None and getattr(self.gate, "bias_vl", None) is not None:
             image_mask = input_ids >= self.vl_vocab_size
             input_ids = torch.where(
                 image_mask, torch.zeros_like(input_ids), input_ids)
-
-        if not self.use_mega_moe:
 ''',
         "mega-MoE image sentinel guard",
     )
