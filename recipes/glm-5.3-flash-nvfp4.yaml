@@ -1,5 +1,5 @@
 # Recipe: GLM-5.3-Flash-NVFP4 on two DGX Spark nodes.
-# Sparse-MLA source: /home/arbusto/git/glm53-flash-vllm-gb10
+# Native FP8 DS-MLA patch source: /home/arbusto/git/glm53-flash-cluster
 # Replace any earlier vllm-node-glm image on both nodes before launch:
 # ./build-and-copy.sh --glm53-gb10 -c --copy-parallel
 # Download only this model to every node before launch:
@@ -10,8 +10,8 @@
 # cache-clearing commands.
 
 recipe_version: "1"
-name: GLM-5.3-Flash-NVFP4 sparse MLA (TP=2)
-description: Qualified GB10 TP2 profile using the vendored sparse-MLA vLLM plugin
+name: GLM-5.3-Flash-NVFP4 native FP8 DS-MLA (TP=2)
+description: Qualified GB10 TP2 profile using native FP8 DS-MLA with the vendored NoPE patch chain
 
 model: LibertAIDAI/GLM-5.3-Flash-NVFP4
 container: vllm-node-glm
@@ -22,7 +22,7 @@ env:
   TORCH_CUDA_ARCH_LIST: "12.1a"
   FLASHINFER_CUDA_ARCH_LIST: "12.1a"
   FLASHINFER_DISABLE_VERSION_CHECK: "1"
-  VLLM_GLM53_CUDA_SPARSE_MLA: "1"
+  VLLM_MLA_NOPE_PAD_ROPE: "1"
   NCCL_CUMEM_ENABLE: "0"
   NCCL_NVLS_ENABLE: "0"
   NCCL_CROSS_NIC: "0"
@@ -43,8 +43,19 @@ defaults:
   block_size: 256
 
 command: |
-  glm53_model_snapshot="$(cat /root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/refs/main)"
-  vllm serve "/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/snapshots/$glm53_model_snapshot" \
+  glm53_model_cache=/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4
+  glm53_model_ref="$glm53_model_cache/refs/main"
+  if [ ! -r "$glm53_model_ref" ]; then
+    echo "Error: GLM-5.3 snapshot ref is missing: $glm53_model_ref" >&2
+    exit 1
+  fi
+  glm53_model_snapshot="$(cat "$glm53_model_ref")"
+  glm53_model_path="$glm53_model_cache/snapshots/$glm53_model_snapshot"
+  if [ ! -f "$glm53_model_path/processor_config.json" ]; then
+    echo "Error: GLM-5.3 snapshot is incomplete: missing processor_config.json in $glm53_model_path" >&2
+    exit 1
+  fi
+  vllm serve "$glm53_model_path" \
     --served-model-name glm-5.3-flash \
     --host {host} \
     --port {port} \
@@ -60,5 +71,5 @@ command: |
     --enable-auto-tool-choice \
     --tool-call-parser glm47 \
     --reasoning-parser deepseek_r1 \
-    --kv-cache-dtype bfloat16 \
+    --kv-cache-dtype fp8_ds_mla \
     --speculative-config '{{"method":"mtp","num_speculative_tokens":3}}'

@@ -275,7 +275,7 @@ test_all_recipes_load() {
                 output=$("$PROJECT_DIR/run-recipe.py" "$recipe_name" --dry-run --solo 2>&1 || true)
             fi
             
-            if ! echo "$output" | grep -q "Error:"; then
+            if ! echo "$output" | grep -q "^Error:"; then
                 log_verbose "$recipe_name loads OK"
             else
                 log_verbose "$recipe_name failed to load"
@@ -1414,9 +1414,9 @@ test_qwen38_flash_next_nvfp4_profile() {
     fi
 }
 
-# Test: GLM-5.3 Flash uses the qualified sparse-MLA TP2 profile
+# Test: GLM-5.3 Flash uses the qualified native FP8 DS-MLA TP2 profile
 test_glm53_flash_nvfp4_profile() {
-    log_test "GLM-5.3 Flash NVFP4 sparse-MLA TP2 profile"
+    log_test "GLM-5.3 Flash NVFP4 native FP8 DS-MLA TP2 profile"
 
     local output
     local status
@@ -1434,8 +1434,15 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
     fi
     for expected in \
-        'glm53_model_snapshot="$(cat /root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/refs/main)"' \
-        'vllm serve "/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/snapshots/$glm53_model_snapshot"' \
+        'glm53_model_cache=/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4' \
+        'glm53_model_ref="$glm53_model_cache/refs/main"' \
+        'if [ ! -r "$glm53_model_ref" ]; then' \
+        'Error: GLM-5.3 snapshot ref is missing: $glm53_model_ref' \
+        'glm53_model_snapshot="$(cat "$glm53_model_ref")"' \
+        'glm53_model_path="$glm53_model_cache/snapshots/$glm53_model_snapshot"' \
+        'if [ ! -f "$glm53_model_path/processor_config.json" ]; then' \
+        'Error: GLM-5.3 snapshot is incomplete: missing processor_config.json in $glm53_model_path' \
+        'vllm serve "$glm53_model_path"' \
         "--tensor-parallel-size 2" \
         "--gpu-memory-utilization 0.8" \
         "--max-model-len 65536" \
@@ -1443,7 +1450,7 @@ test_glm53_flash_nvfp4_profile() {
         "--max-num-batched-tokens 1024" \
         "--block-size 256" \
         "--moe-backend flashinfer_cutlass" \
-        "--kv-cache-dtype bfloat16" \
+        "--kv-cache-dtype fp8_ds_mla" \
         "--enforce-eager" \
         "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":3}'" \
         "--reasoning-parser deepseek_r1" \
@@ -1462,19 +1469,27 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
         log_verbose "Multimodal GLM command must not enable text-only mode"
     fi
+    if echo "$vllm_cmd" | grep -qF -- "--kv-cache-memory-bytes"; then
+        all_passed=false
+        log_verbose "GLM native FP8 profile must not pin KV cache memory"
+    fi
+    if echo "$vllm_cmd" | grep -Eq -- '(^|[[:space:]])--kv-cache-dtype[[:space:]]+fp8([[:space:]]|$)'; then
+        all_passed=false
+        log_verbose "GLM native FP8 profile must use fp8_ds_mla, not generic fp8"
+    fi
     if ! echo "$launch_cmd" | grep -qF -- "-t vllm-node-glm"; then
         all_passed=false
         log_verbose "GLM launch command does not use vllm-node-glm"
     fi
     if echo "$launch_cmd" | grep -qF -- "--apply-mod mods/glm53-sparse-mla"; then
         all_passed=false
-        log_verbose "GLM sparse-MLA launch command unexpectedly applies a build-time patch as a runtime mod"
+        log_verbose "GLM native FP8 launch command unexpectedly applies a removed runtime mod"
     fi
     for expected in \
         "-e TORCH_CUDA_ARCH_LIST=12.1a" \
         "-e FLASHINFER_CUDA_ARCH_LIST=12.1a" \
         "-e FLASHINFER_DISABLE_VERSION_CHECK=1" \
-        "-e VLLM_GLM53_CUDA_SPARSE_MLA=1" \
+        "-e VLLM_MLA_NOPE_PAD_ROPE=1" \
         "-e NCCL_CUMEM_ENABLE=0" \
         "-e NCCL_NVLS_ENABLE=0" \
         "-e NCCL_CROSS_NIC=0" \
@@ -1489,12 +1504,13 @@ test_glm53_flash_nvfp4_profile() {
     for unexpected in \
         "GLM-5.3-Flash-DFlash2" \
         "--moe-backend marlin" \
-        "--kv-cache-dtype fp8" \
+        "--kv-cache-dtype bfloat16" \
         "VLLM_GLM53_MOE_INPUT_SCALE" \
+        "VLLM_GLM53_CUDA_SPARSE_MLA" \
         "--reasoning-parser glm45"; do
         if echo "$output" | grep -qF -- "$unexpected"; then
             all_passed=false
-            log_verbose "GLM sparse-MLA profile unexpectedly includes: $unexpected"
+            log_verbose "GLM native FP8 profile unexpectedly includes: $unexpected"
         fi
     done
     if ! echo "$output" | grep -qF -- "Build args: --glm53-gb10"; then
@@ -1507,9 +1523,9 @@ test_glm53_flash_nvfp4_profile() {
     fi
 
     if [[ "$all_passed" == "true" ]]; then
-        log_pass "GLM-5.3 Flash uses the qualified sparse-MLA TP2 profile"
+        log_pass "GLM-5.3 Flash uses the qualified native FP8 DS-MLA TP2 profile"
     else
-        log_fail "GLM-5.3 Flash sparse-MLA TP2 profile is incomplete"
+        log_fail "GLM-5.3 Flash native FP8 DS-MLA TP2 profile is incomplete"
         log_verbose "$output"
     fi
 }
