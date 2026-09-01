@@ -1433,6 +1433,10 @@ test_glm53_flash_nvfp4_profile() {
     if [[ $status -ne 0 ]]; then
         all_passed=false
     fi
+    if ! echo "$output" | grep -qF -- "Model: LibertAIDAI/GLM-5.3-Flash-NVFP4"; then
+        all_passed=false
+        log_verbose "GLM qualified recipe must retain the LibertAIDAI checkpoint"
+    fi
     for expected in \
         'glm53_model_cache=/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4' \
         'glm53_model_ref="$glm53_model_cache/refs/main"' \
@@ -1503,6 +1507,7 @@ test_glm53_flash_nvfp4_profile() {
     done
     for unexpected in \
         "GLM-5.3-Flash-DFlash2" \
+        "local-inference-lab/GLM-5.3-Flash-NVFP4" \
         "--moe-backend marlin" \
         "--kv-cache-dtype bfloat16" \
         "VLLM_GLM53_MOE_INPUT_SCALE" \
