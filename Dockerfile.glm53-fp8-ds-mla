@@ -1,0 +1,17 @@
+FROM vllm/vllm-openai:glm53-flash-arm64-cu130@sha256:905c02933be6021301db2dc284e24e3727467aa3a0f63b41d609885778a07bce
+
+COPY mods/glm53-fp8-ds-mla/patch_mla.py /tmp/glm53-patch-mla.py
+
+RUN set -eux; \
+    python3 /tmp/glm53-patch-mla.py; \
+    VLLM_ROOT=/usr/local/lib/python3.12/dist-packages/vllm; \
+    FLASHINFER_ROOT=/usr/local/lib/python3.12/dist-packages/flashinfer; \
+    grep -Fq 'VLLM_MLA_NOPE_PAD_ROPE' "$VLLM_ROOT/model_executor/layers/mla.py"; \
+    grep -Fq '_glm_kpool_tail' "$VLLM_ROOT/v1/attention/backends/mla/flashinfer_mla_sparse_sm120.py"; \
+    grep -Fq 'topk_indices_physical.shape[-1]' "$VLLM_ROOT/v1/attention/backends/mla/flashinfer_mla_sparse_sm120.py"; \
+    grep -Fq 'GLM5_NEXT_WIDTH' "$FLASHINFER_ROOT/mla/_sparse_mla_sm120.py"; \
+    python3 -m py_compile \
+        "$VLLM_ROOT/model_executor/layers/mla.py" \
+        "$VLLM_ROOT/v1/attention/backends/mla/flashinfer_mla_sparse_sm120.py" \
+        "$FLASHINFER_ROOT/mla/_sparse_mla_sm120.py"; \
+    rm -f /tmp/glm53-patch-mla.py
