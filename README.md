@@ -181,13 +181,13 @@ replaces the earlier custom vLLM PR and FlashInfer source-wheel rebuild path:
 ./run-recipe.sh recipes/qwen3.8-flash-next-nvfp4.yaml
 ```
 
-#### GLM-5.3 Flash sparse-MLA profile
+#### GLM-5.3 Flash native FP8 DS-MLA profile
 
 The two-Spark `glm-5.3-flash-nvfp4` recipe locally builds `vllm-node-glm` from
-the official GLM-5.3 vLLM base with the sparse-MLA vLLM plugin pinned from
-[`Libertai/glm53-flash-vllm-gb10`](https://github.com/Libertai/glm53-flash-vllm-gb10).
-This qualified profile targets SM121 and requires TP2 with a BF16 KV cache. It
-uses model-native MTP with three speculative tokens.
+the digest-pinned official GLM-5.3 vLLM base with the vendored NoPE/native-FP8
+patch chain from `glm53-flash-cluster`. It retains the
+`LibertAIDAI/GLM-5.3-Flash-NVFP4` checkpoint, targets SM121 TP2, uses native
+`fp8_ds_mla`, and enables model-native MTP with three speculative tokens.
 
 Build, download, and launch the single-model workflow:
 

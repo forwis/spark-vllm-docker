@@ -1,5 +1,10 @@
 # GLM-5.3 Sparse-MLA Reimplementation Plan
 
+> **Superseded:** The active GLM implementation is defined by
+> `docs/superpowers/specs/2026-09-01-glm53-native-fp8-ds-mla-design.md` and its
+> implementation plan. This document remains as history for the removed
+> BF16 custom-plugin profile.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Remove the active GLM-5.3 DFlash2 implementation and replace it with a reproducible SM121 sparse-MLA vLLM plugin image and conservative two-node recipe.

@@ -1,5 +1,10 @@
 # GLM-5.3 Sparse-MLA Reimplementation Design
 
+> **Superseded:** The active GLM implementation is defined by
+> `docs/superpowers/specs/2026-09-01-glm53-native-fp8-ds-mla-design.md` and its
+> implementation plan. This document remains as history for the removed
+> BF16 custom-plugin profile.
+
 ## Goal
 
 Replace every active part of the existing GLM-5.3 Flash DFlash2/SM121 patch
