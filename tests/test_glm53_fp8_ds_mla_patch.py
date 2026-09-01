@@ -124,6 +124,19 @@ def main():
         assert result.returncode != 0
         assert "anchor1 count 0" in result.stderr
 
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        duplicate_anchor = "        self.qk_head_dim = qk_nope_head_dim + qk_rope_head_dim\n"
+        duplicate_source = MLA_FIXTURE.replace(
+            duplicate_anchor, duplicate_anchor * 2
+        )
+        relocated, _, _, _ = prepare_case(
+            Path(temporary_directory), duplicate_source
+        )
+        result = execute(relocated)
+
+        assert result.returncode != 0
+        assert "anchor1 count 2" in result.stderr
+
 
 if __name__ == "__main__":
     main()

@@ -48,9 +48,7 @@ setup_fixture() {
     cp "$PROJECT_DIR/build-and-copy.sh" "$FIXTURE_DIR/"
     cp "$PROJECT_DIR/autodiscover.sh" "$FIXTURE_DIR/"
     cp "$PROJECT_DIR/Dockerfile" "$FIXTURE_DIR/"
-    if [ -f "$PROJECT_DIR/Dockerfile.glm53-fp8-ds-mla" ]; then
-        cp "$PROJECT_DIR/Dockerfile.glm53-fp8-ds-mla" "$FIXTURE_DIR/"
-    fi
+    cp "$PROJECT_DIR/Dockerfile.glm53-fp8-ds-mla" "$FIXTURE_DIR/"
     if [ -f "$PROJECT_DIR/Dockerfile.qwen38-flash-next" ]; then
         cp "$PROJECT_DIR/Dockerfile.qwen38-flash-next" "$FIXTURE_DIR/"
     fi
@@ -221,6 +219,14 @@ assert_output_contains() {
     fi
 }
 
+assert_fixture_file_has_line() {
+    local line="$1"
+    local file="$2"
+    if ! grep -Fxq -- "$line" "$FIXTURE_DIR/$file"; then
+        fail "Expected fixture $file to contain: $line"
+    fi
+}
+
 assert_metadata_contains() {
     local pattern="$1"
     if [ ! -f "$METADATA_LOG" ] || ! grep -Eq "$pattern" "$METADATA_LOG"; then
@@ -285,6 +291,42 @@ test_qwen38_flash_next_rejects_source_build_overrides() {
 
 test_glm53_gb10_profile_builds_native_fp8_mla_image() {
     setup_fixture
+    assert_fixture_file_has_line \
+        'FROM vllm/vllm-openai:glm53-flash-arm64-cu130@sha256:905c02933be6021301db2dc284e24e3727467aa3a0f63b41d609885778a07bce' \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        'COPY mods/glm53-fp8-ds-mla/patch_mla.py /tmp/glm53-patch-mla.py' \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        'RUN set -eux; \' \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        '    python3 /tmp/glm53-patch-mla.py; \' \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        "    grep -Fq 'VLLM_MLA_NOPE_PAD_ROPE' \"\$VLLM_ROOT/model_executor/layers/mla.py\"; \\" \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        "    grep -Fq '_glm_kpool_tail' \"\$VLLM_ROOT/v1/attention/backends/mla/flashinfer_mla_sparse_sm120.py\"; \\" \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        "    grep -Fq 'topk_indices_physical.shape[-1]' \"\$VLLM_ROOT/v1/attention/backends/mla/flashinfer_mla_sparse_sm120.py\"; \\" \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        "    grep -Fq 'GLM5_NEXT_WIDTH' \"\$FLASHINFER_ROOT/mla/_sparse_mla_sm120.py\"; \\" \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        '    python3 -m py_compile \' \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        '        "$VLLM_ROOT/model_executor/layers/mla.py" \' \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        '        "$VLLM_ROOT/v1/attention/backends/mla/flashinfer_mla_sparse_sm120.py" \' \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        '        "$FLASHINFER_ROOT/mla/_sparse_mla_sm120.py"; \' \
+        'Dockerfile.glm53-fp8-ds-mla'
     run_build --glm53-gb10 --build-jobs 7 || fail "--glm53-gb10 run failed"
     assert_log_not_contains '^docker pull '
     assert_log_contains '^docker build -f Dockerfile\.glm53-fp8-ds-mla -t vllm-node-glm \.$'
