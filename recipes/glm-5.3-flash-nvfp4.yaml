@@ -43,7 +43,8 @@ defaults:
   block_size: 256
 
 command: |
-  vllm serve LibertAIDAI/GLM-5.3-Flash-NVFP4 \
+  glm53_model_snapshot="$(cat /root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/refs/main)"
+  vllm serve "/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/snapshots/$glm53_model_snapshot" \
     --served-model-name glm-5.3-flash \
     --host {host} \
     --port {port} \

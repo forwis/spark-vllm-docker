@@ -1434,7 +1434,8 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
     fi
     for expected in \
-        "LibertAIDAI/GLM-5.3-Flash-NVFP4" \
+        'glm53_model_snapshot="$(cat /root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/refs/main)"' \
+        'vllm serve "/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4/snapshots/$glm53_model_snapshot"' \
         "--tensor-parallel-size 2" \
         "--gpu-memory-utilization 0.8" \
         "--max-model-len 65536" \
@@ -1452,6 +1453,11 @@ test_glm53_flash_nvfp4_profile() {
             log_verbose "Missing GLM command argument: $expected"
         fi
     done
+    if echo "$vllm_cmd" | grep -qF -- \
+        "vllm serve LibertAIDAI/GLM-5.3-Flash-NVFP4"; then
+        all_passed=false
+        log_verbose "GLM command must pass a local snapshot path to vLLM"
+    fi
     if echo "$vllm_cmd" | grep -qF -- "--language-model-only"; then
         all_passed=false
         log_verbose "Multimodal GLM command must not enable text-only mode"
