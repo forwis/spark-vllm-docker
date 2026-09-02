@@ -168,6 +168,27 @@ For periodic maintenance, I recommend using a filter: `docker builder prune --fi
 
 ## CHANGELOG
 
+### 2026-09-02
+
+#### DeepSeek V4 Flash Vision-Exp on locally built DSpark v2
+
+Added the two-node TP2 `deepseek-v4-flash-vision-exp` recipe, with one
+tensor-parallel rank per DGX Spark. It reproduces the JASL v2 SM121 source
+build, applies the focused Vision runtime port on both containers, and serves
+the larger 1M-context DSpark-6 profile with native `fp8_ds_mla` KV cache. The
+recipe does not use a published final runtime image.
+
+Image tokens use causal decoder attention: this port does not implement
+bidirectional or full-visible image-token attention and does not claim full
+production equivalence with the community Vision branch.
+
+```bash
+./run-recipe.sh deepseek-v4-flash-vision-exp --setup
+```
+
+Development validation is CPU-only; perform the first real build and launch
+under `docs/AGENT_RUNBOOK.md`.
+
 ### 2026-08-31
 
 #### Qwen3.8 Flash Next official-base build

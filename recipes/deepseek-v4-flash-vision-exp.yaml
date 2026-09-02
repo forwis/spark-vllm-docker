@@ -1,0 +1,69 @@
+recipe_version: "1"
+name: DeepSeek-V4-Flash-Vision-Exp
+description: Locally built JASL v2 Vision-Exp runtime for a two-node TP2 DGX Spark cluster
+
+model: deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
+container: vllm-node-dsv4f:v2
+
+build_args:
+  - --vllm-repo
+  - https://github.com/jasl/vllm.git
+  - --vllm-ref
+  - 9ad62027bc84ca0ccbcc40853179312de770220c
+  - --rebuild-flashinfer
+  - --flashinfer-ref
+  - a0a6b019b9b27d49d209f85d028a1ae5a9b347d7
+  - --gpu-arch
+  - 12.1a
+  - --torch-version
+  - 2.13.0
+  - --torchvision-version
+  - 0.28.0
+  - --torchaudio-version
+  - 2.11.0
+
+cluster_only: true
+
+mods:
+  - mods/dsv4f-vision-exp
+
+defaults:
+  port: 54351
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.835
+  max_model_len: 1048576
+  block_size: 256
+  max_num_seqs: 6
+  max_num_batched_tokens: 8192
+  long_prefill_token_threshold: 1024
+
+env:
+  TZ: Asia/Seoul
+  VLLM_USE_BREAKABLE_CUDAGRAPH: "0"
+
+command: |
+  vllm serve deepseek-ai/DeepSeek-V4-Flash-Vision-Exp \
+      --served-model-name deepseek-v4-flash-vision-exp \
+      --host {host} \
+      --port {port} \
+      --trust-remote-code \
+      --tensor-parallel-size {tensor_parallel} \
+      --gpu-memory-utilization {gpu_memory_utilization} \
+      --kv-cache-dtype fp8_ds_mla \
+      --block-size {block_size} \
+      --max-model-len {max_model_len} \
+      --max-num-seqs {max_num_seqs} \
+      --max-num-batched-tokens {max_num_batched_tokens} \
+      --long-prefill-token-threshold {long_prefill_token_threshold} \
+      --enable-prefix-caching \
+      --enable-chunked-prefill \
+      --async-scheduling \
+      --limit-mm-per-prompt '{{"image":8}}' \
+      --hf-overrides '{{"architectures":["DeepseekV4VForConditionalGeneration"]}}' \
+      --speculative-config '{{"method":"dspark","num_speculative_tokens":6,"draft_sample_method":"probabilistic"}}' \
+      --tokenizer-mode deepseek_v4 \
+      --enable-auto-tool-choice \
+      --tool-call-parser deepseek_v4 \
+      --reasoning-parser deepseek_v4 \
+      --generation-config vllm
