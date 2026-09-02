@@ -1448,16 +1448,17 @@ test_glm53_flash_nvfp4_profile() {
         'Error: GLM-5.3 snapshot is incomplete: missing processor_config.json in $glm53_model_path' \
         'vllm serve "$glm53_model_path"' \
         "--tensor-parallel-size 2" \
-        "--gpu-memory-utilization 0.8" \
-        "--max-model-len 65536" \
-        "--max-num-seqs 2" \
-        "--max-num-batched-tokens 1024" \
+        "--gpu-memory-utilization 0.9" \
+        "--max-model-len 262144" \
+        "--max-num-seqs 4" \
+        "--max-num-batched-tokens 2048" \
         "--block-size 256" \
         "--moe-backend flashinfer_cutlass" \
+        "--load-format instanttensor" \
         "--kv-cache-dtype fp8_ds_mla" \
         "--enforce-eager" \
         "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":3}'" \
-        "--reasoning-parser deepseek_r1" \
+        "--reasoning-parser glm45" \
         "--tool-call-parser glm47"; do
         if ! echo "$vllm_cmd" | grep -qF -- "$expected"; then
             all_passed=false
@@ -1485,6 +1486,10 @@ test_glm53_flash_nvfp4_profile() {
         all_passed=false
         log_verbose "GLM launch command does not use vllm-node-glm"
     fi
+    if ! echo "$launch_cmd" | grep -qF -- "--apply-mod mods/instanttensor-hybrid-draft-loader"; then
+        all_passed=false
+        log_verbose "GLM launch command does not apply instanttensor-hybrid-draft-loader mod"
+    fi
     if echo "$launch_cmd" | grep -qF -- "--apply-mod mods/glm53-sparse-mla"; then
         all_passed=false
         log_verbose "GLM native FP8 launch command unexpectedly applies a removed runtime mod"
@@ -1511,8 +1516,7 @@ test_glm53_flash_nvfp4_profile() {
         "--moe-backend marlin" \
         "--kv-cache-dtype bfloat16" \
         "VLLM_GLM53_MOE_INPUT_SCALE" \
-        "VLLM_GLM53_CUDA_SPARSE_MLA" \
-        "--reasoning-parser glm45"; do
+        "VLLM_GLM53_CUDA_SPARSE_MLA"; do
         if echo "$output" | grep -qF -- "$unexpected"; then
             all_passed=false
             log_verbose "GLM native FP8 profile unexpectedly includes: $unexpected"
