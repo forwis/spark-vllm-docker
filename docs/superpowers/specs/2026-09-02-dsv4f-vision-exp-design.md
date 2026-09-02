@@ -7,10 +7,12 @@ Add a qualified two-DGX-Spark recipe for
 `vllm-node-dsv4f:v2` runtime. The port combines the existing JASL SM121 and
 DSpark implementation with the focused multimodal support from
 `a939984672/vllm` and the larger serving profile validated by
-`/home/arbusto/git/DeepSeek-v4-Flash-DSpark-2x-DGX-Spark`.
+`MiaAI-Lab/DeepSeek-v4-Flash-DSpark-2x-DGX-Spark`.
 
 The final runtime must use a locally built image. No published Anemll, vLLM,
 MiaAI, or other prebuilt final image is an acceptable dependency.
+This experimental port is intended to make the selected profile runnable; it
+does not claim full production equivalence with the community Vision branch.
 
 ## Qualified Source Boundary
 
@@ -42,18 +44,19 @@ The image itself already supplies the qualified SM121 native components:
 
 ## Vision Port
 
-The port will vendor the production changes represented by the following
+The port evaluates the focused changes represented by the following
 commits from the `dsv4-vision-exp` branch of `a939984672/vllm`:
 
 - `f9ff02d`: DeepSeek V4 Vision multimodal model support;
 - `b706973`: skip the unused hash-gate routing bias;
 - `979e41f`: apply the vision-specific `bias_vl` expert-routing bias;
-- `ce9dd9c`: compute the vision-visible attention window;
-- `7996ea0`: clamp multimodal-prefix attention metadata.
+- `ce9dd9c`: compute the vision-visible attention window (not selected);
+- `7996ea0`: clamp multimodal-prefix attention metadata (not selected).
 
-Only the focused Python runtime delta will be ported. The branch's full v0.28
-tree, build system, documentation, and unrelated source changes will not be
-copied over the JASL base.
+Only the Python runtime delta compatible with the pinned JASL sparse-MLA
+backend will be ported. The branch's full v0.28 tree, build system,
+documentation, unrelated source changes, and unsupported multimodal-prefix
+attention path will not be copied over the JASL base.
 
 The runtime mod will add the Vision model, tower, and multimodal preprocessing
 modules and patch the existing JASL files that own:
@@ -61,32 +64,46 @@ modules and patch the existing JASL files that own:
 - model registry registration for
   `DeepseekV4VForConditionalGeneration`;
 - input token validation for the five out-of-vocabulary image sentinels;
-- visible-window computation for multimodal prefix attention;
 - `bias_vl` creation and image-position routing;
 - fused top-k routing with a modality-specific bias;
 - DSpark draft-weight loading for `.ffn.gate.bias_vl`.
 
-The port has three known source-overlap sites. Their resolution is fixed by
+The port has two known source-overlap sites. Their resolution is fixed by
 this design:
 
 1. retain JASL's negative-token validation, but allow tokens through
    `vocab_size + 4` only when `vision_n_layers > 0`;
 2. retain JASL's `_sync_fused_moe_metadata()` call, then attach `bias_vl` to
-   the constructed router;
-3. retain JASL's `WINDOW_SIZE` cache utility behavior and append the
-   Vision-visible-window helper.
+   the constructed router.
 
 JASL's `DeepSeekV4DSparkLayer` constructs the same `DeepseekV4MoE` class used
-by target layers. The draft loader therefore only needs to map checkpoint
-`.ffn.gate.bias_vl` weights to
-`.ffn.gate.e_score_correction_bias_vl`, while retaining the existing text bias
-mapping. Unknown optional weights must be skipped in the same guarded manner
-as the reference runtime rather than indexed unconditionally.
+by target layers. Both the checkpoint-facing community port and the
+instantiated JASL parameter use `.ffn.gate.bias_vl`, so the draft loader must
+retain that name rather than remap it to the nonexistent
+`.ffn.gate.e_score_correction_bias_vl`. The existing text-bias mapping remains,
+and unknown optional weights are skipped instead of indexed unconditionally.
 
 The mod will be tied to the exact v2 source layout, be safe to apply on both
 cluster nodes, recognize an already-applied state, and fail before server
-startup if an expected anchor has drifted. It will not compile or replace any
-native CUDA component.
+startup if an expected anchor or installed semantic block has drifted. The
+outer multimodal wrapper implements the pinned `SupportsEagle3` interface and
+delegates auxiliary-hidden-state configuration to the inner language model.
+Both text and Vision routes preserve the stock fused shared-expert append
+behavior. The mod will not compile or replace any native CUDA component.
+
+## Attention Qualification
+
+The pinned `DeepseekV4SparseMLABackend` inherits
+`supports_mm_prefix() == False`, and backend validation rejects
+`use_mm_prefix`. The recipe therefore does not set `is_mm_prefix_lm`, the mod
+does not install `compute_vision_visible_window`, and the wrapper does not set
+`mm_prefix_clamp_sliding_window`.
+
+The Vision tower itself retains its normal bidirectional image encoding, but
+the resulting image tokens enter the language model through ordinary causal
+decoder attention. This port does not implement bidirectional or full-visible
+image-token attention. A sparse-MLA backend that supports that behavior is
+separate future work, not part of this qualification.
 
 ## KV-Cache Choice
 
@@ -139,7 +156,7 @@ community port:
 
 ```text
 --hf-overrides
-{"architectures":["DeepseekV4VForConditionalGeneration"],"is_mm_prefix_lm":true}
+{"architectures":["DeepseekV4VForConditionalGeneration"]}
 ```
 
 The recipe will omit distributed-executor, node-count, node-rank, headless,
@@ -155,8 +172,9 @@ inputs remain pinned independently.
 
 `recipes/deepseek-v4-flash-0731-jasl.yaml` currently names
 `vllm-node-dsv4f:v1`. Since v2 is the confirmed current local build, that
-recipe will be updated to use `vllm-node-dsv4f:v2` without changing its model
-or serving parameters.
+recipe will be updated to use `vllm-node-dsv4f:v2`, and its stale B12X comment
+and description will be corrected to name JASL v2. Its model and serving
+parameters remain unchanged; the separate B12X recipe is not modified.
 
 No other DeepSeek, GLM, Qwen, or user-modified recipe will be changed.
 
@@ -192,11 +210,14 @@ v2 source files and verify:
 - sentinel token validation is gated by Vision configuration;
 - `bias_vl` is constructed and attached without removing JASL metadata sync;
 - target routing receives the modality-specific bias;
-- DSpark maps and loads `bias_vl` weights;
-- multimodal visible-window logic is present;
+- DSpark retains and loads `bias_vl` weights without a rejected remap;
+- the outer wrapper exposes and delegates the pinned EAGLE3 interface;
+- text and Vision routes both append stock fused shared-expert slots;
+- mm-prefix configuration and visible-window patching are absent;
 - all changed Python files compile;
 - a second application is idempotent;
-- missing, duplicated, or foreign anchors fail loudly.
+- missing, duplicated, foreign, or semantically corrupted installed blocks
+  fail loudly without partial writes.
 
 Recipe tests will require the exact local-source build pins and all larger
 profile settings. They will reject:
@@ -204,6 +225,7 @@ profile settings. They will reject:
 - any published final image dependency;
 - the obsolete v1 tag;
 - `nvfp4_ds_mla` in the new Vision recipe;
+- `is_mm_prefix_lm` in the new Vision recipe;
 - unsupported single-node use;
 - runner-owned distributed flags inside the recipe command.
 

@@ -20,6 +20,7 @@ import torch.nn as nn
 from vllm.config import VllmConfig
 from vllm.model_executor.models.interfaces import (
     MultiModalEmbeddings,
+    SupportsEagle3,
     SupportsMultiModal,
     SupportsPP,
 )
@@ -48,10 +49,12 @@ from vllm.models.deepseek_v4.vision import DeepseekV4Aligner, DeepseekV4ViT
     info=DeepseekV4VProcessingInfo,
     dummy_inputs=DeepseekV4VDummyInputsBuilder,
 )
-class DeepseekV4VForConditionalGeneration(nn.Module, SupportsMultiModal, SupportsPP):
-    # Image spans exceed the SWA window; the visible-window kernel clamps
-    # per-query, so keep the bidirectional doc ranges alive past the window.
-    mm_prefix_clamp_sliding_window = True
+class DeepseekV4VForConditionalGeneration(
+    nn.Module,
+    SupportsMultiModal,
+    SupportsPP,
+    SupportsEagle3,
+):
     # The LM's MoE gate selects `bias_vl` over `bias` per position and the hash
     # layers index tid2eid by token id, so the raw ids must reach forward().
     requires_raw_input_tokens = True
@@ -161,6 +164,12 @@ class DeepseekV4VForConditionalGeneration(nn.Module, SupportsMultiModal, Support
 
     def compute_logits(self, hidden_states, *args, **kwargs):
         return self.language_model.compute_logits(hidden_states, *args, **kwargs)
+
+    def set_aux_hidden_state_layers(self, layers: tuple[int, ...]) -> None:
+        self.language_model.set_aux_hidden_state_layers(layers)
+
+    def get_eagle3_default_aux_hidden_state_layers(self) -> tuple[int, ...]:
+        return self.language_model.get_eagle3_default_aux_hidden_state_layers()
 
     def load_weights(self, weights: Iterable[tuple[str, torch.Tensor]]) -> set[str]:
         loader = AutoWeightsLoader(self)

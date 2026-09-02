@@ -1,6 +1,6 @@
 recipe_version: "1"
 name: DeepSeek-V4-Flash-Vision-Exp
-description: Locally built JASL v2 Vision-Exp runtime for a dual DGX Spark cluster
+description: Locally built JASL v2 Vision-Exp runtime for a two-node TP2 DGX Spark cluster
 
 model: deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
 container: vllm-node-dsv4f:v2
@@ -60,7 +60,7 @@ command: |
       --enable-chunked-prefill \
       --async-scheduling \
       --limit-mm-per-prompt '{{"image":8}}' \
-      --hf-overrides '{{"architectures":["DeepseekV4VForConditionalGeneration"],"is_mm_prefix_lm":true}}' \
+      --hf-overrides '{{"architectures":["DeepseekV4VForConditionalGeneration"]}}' \
       --speculative-config '{{"method":"dspark","num_speculative_tokens":6,"draft_sample_method":"probabilistic"}}' \
       --tokenizer-mode deepseek_v4 \
       --enable-auto-tool-choice \

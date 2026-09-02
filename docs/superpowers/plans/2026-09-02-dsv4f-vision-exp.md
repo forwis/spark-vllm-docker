@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a locally built, two-DGX-Spark recipe for `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` by porting focused multimodal support onto the pinned `vllm-node-dsv4f:v2` JASL/DSpark runtime.
+**Goal:** Add a locally built, two-node TP2 DGX Spark recipe for `deepseek-ai/DeepSeek-V4-Flash-Vision-Exp` by porting focused multimodal support onto the pinned `vllm-node-dsv4f:v2` JASL/DSpark runtime.
 
-**Architecture:** Keep the native JASL v2 SM121, DSpark, and `fp8_ds_mla` implementation unchanged, then apply an idempotent launch-time Python mod that installs three Apache-2.0 Vision modules and patches six exact JASL source sites. A cluster-only recipe reproduces the v2 source-build pins when needed and launches the larger 1M-context DSpark-6 profile; no published final runtime image is used.
+**Architecture:** Keep the native JASL v2 SM121, DSpark, and `fp8_ds_mla` implementation unchanged, then apply an idempotent launch-time Python mod that installs three Apache-2.0 Vision modules and patches five exact JASL source sites. A cluster-only two-node TP2 recipe reproduces the v2 source-build pins when needed and launches the larger 1M-context DSpark-6 profile; no published final runtime image is used. Image tokens use causal decoder attention because the pinned sparse-MLA backend rejects multimodal-prefix attention, so this port is not a claim of full production equivalence.
 
 **Tech Stack:** Bash, Python 3.10+, PyYAML recipes, vLLM Python overlays, Docker source builds, unittest, mocked recipe dry-runs.
 
@@ -16,8 +16,9 @@
 - Pin vLLM to `https://github.com/jasl/vllm.git` commit `9ad62027bc84ca0ccbcc40853179312de770220c`.
 - Pin FlashInfer to commit `a0a6b019b9b27d49d209f85d028a1ae5a9b347d7` and GPU architecture to `12.1a`.
 - Preserve Torch 2.13.0, torchvision 0.28.0, torchaudio 2.11.0, CUTLASS DSL 4.7, Transformers 5, and the non-B12X v2 profile.
-- Port only the production changes from `a939984672/vllm` commits `f9ff02d`, `b706973`, `979e41f`, `ce9dd9c`, and `7996ea0`.
-- Preserve JASL's `_sync_fused_moe_metadata()`, `WINDOW_SIZE`, negative-token validation, native DSpark, and native SM121 sparse-MLA behavior.
+- Port the compatible runtime changes from `a939984672/vllm` commits `f9ff02d`, `b706973`, and `979e41f`; do not select the `ce9dd9c`/`7996ea0` multimodal-prefix path.
+- Preserve JASL's `_sync_fused_moe_metadata()`, negative-token validation, native DSpark, and native SM121 sparse-MLA behavior. Do not patch `cache_utils.py`.
+- Do not set `is_mm_prefix_lm`; causal image-token attention is the qualified boundary, and a bidirectional/full-visible sparse-MLA backend is out of scope.
 - Use `fp8_ds_mla`; do not add or select the misleading `nvfp4_ds_mla` compatibility alias.
 - Keep the recipe cluster-only with TP2, 1,048,576 context, six sequences, 8,192 batch tokens, block size 256, and DSpark-6.
 - Do not add runner-owned distributed executor, node-count, node-rank, rendezvous, or headless flags to the recipe command.
@@ -32,15 +33,15 @@
 - `mods/dsv4f-vision-exp/patch_dsv4f_vision.py` — validate, transform, compile, and atomically install all existing-file changes and overlay modules.
 - `mods/dsv4f-vision-exp/overlay/vllm/models/deepseek_v4/mm_preprocess.py` — exact multimodal processor from `a939984672/vllm@7996ea0`.
 - `mods/dsv4f-vision-exp/overlay/vllm/models/deepseek_v4/vision.py` — exact Vision tower and aligner from `a939984672/vllm@7996ea0`.
-- `mods/dsv4f-vision-exp/overlay/vllm/models/deepseek_v4/vision_model.py` — exact multimodal wrapper from `a939984672/vllm@7996ea0`.
+- `mods/dsv4f-vision-exp/overlay/vllm/models/deepseek_v4/vision_model.py` — multimodal wrapper derived from `a939984672/vllm@7996ea0`, adapted for the pinned EAGLE3 interface and causal-attention boundary.
 - `mods/dsv4f-vision-exp/README.md` — compatibility, behavior, application, and rollback guidance.
 - `mods/dsv4f-vision-exp/UPSTREAM.md` — source repositories, commits, file paths, and Apache-2.0 provenance.
 
 ### Tests and recipes
 
-- `tests/test_dsv4f_vision_exp_mod.py` — synthetic JASL-v2 fixture tests for all patch sites, overlay installation, drift rejection, compilation, and idempotence.
+- `tests/test_dsv4f_vision_exp_mod.py` — synthetic JASL-v2 fixture tests for all patch sites, EAGLE3 delegation, fused shared experts, overlay installation, fail-closed drift rejection, compilation, and idempotence.
 - `recipes/deepseek-v4-flash-vision-exp.yaml` — qualified two-node Vision-Exp profile and exact local source-build arguments.
-- `recipes/deepseek-v4-flash-0731-jasl.yaml` — update only the stale image tag from v1 to v2.
+- `recipes/deepseek-v4-flash-0731-jasl.yaml` — update the stale image tag from v1 to v2 and remove stale B12X wording from this JASL recipe.
 - `tests/test_recipes.sh` — focused dry-run assertions for the new Vision recipe and v2 tag correction.
 - `README.md` — public changelog and launch example.
 
@@ -83,7 +84,6 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
             {
                 "model_executor/layers/fused_moe/router/fused_topk_bias_router.py",
                 "model_executor/models/registry.py",
-                "models/deepseek_v4/common/ops/cache_utils.py",
                 "models/deepseek_v4/nvidia/model.py",
                 "models/deepseek_v4/nvidia/dspark.py",
                 "v1/engine/input_processor.py",
@@ -97,10 +97,9 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
         self.assertIn("def _compute_routing_vision", self.read("model_executor/layers/fused_moe/router/fused_topk_bias_router.py"))
         self.assertIn("self._sync_fused_moe_metadata()", self.read("models/deepseek_v4/nvidia/model.py"))
         self.assertIn("_router.bias_vl = self.gate.bias_vl", self.read("models/deepseek_v4/nvidia/model.py"))
-        self.assertIn("WINDOW_SIZE", self.read("models/deepseek_v4/common/ops/cache_utils.py"))
-        self.assertIn("def compute_vision_visible_window", self.read("models/deepseek_v4/common/ops/cache_utils.py"))
         self.assertIn("model_vocab_size + 4", self.read("v1/engine/input_processor.py"))
-        self.assertIn(".ffn.gate.e_score_correction_bias_vl", self.read("models/deepseek_v4/nvidia/dspark.py"))
+        self.assertIn('name.endswith(".ffn.gate.bias_vl")', self.read("models/deepseek_v4/nvidia/dspark.py"))
+        self.assertNotIn("e_score_correction_bias_vl", self.read("models/deepseek_v4/nvidia/dspark.py"))
 
         before = self.hash_tree(root)
         self.assertEqual(PATCHER.patch_tree(root, overlay), [])
@@ -110,7 +109,7 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
         root, overlay = self.make_fixture()
         before = self.hash_tree(root)
         expected = PATCHER.patch_tree(root, overlay, check=True)
-        self.assertEqual(len(expected), 9)
+        self.assertEqual(len(expected), 8)
         self.assertEqual(self.hash_tree(root), before)
 
     def test_unknown_anchor_fails_without_partial_writes(self):
@@ -131,9 +130,13 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
             PATCHER.patch_tree(root, overlay)
 ```
 
-The fixtures must include both the ordinary `.ffn.gate.bias` loader block and
-JASL's `_sync_fused_moe_metadata()` call so the test detects either upstream
-implementation being lost.
+The fixtures must include the ordinary `.ffn.gate.bias` loader block, JASL's
+`_sync_fused_moe_metadata()` call, and the stock fused shared-expert append so
+the tests detect any of those upstream behaviors being lost. Add CPU-only
+tests for the exact `SupportsEagle3` inheritance/delegation, both text and
+Vision shared-expert routing calls, omission of mm-prefix artifacts, and
+rejection of a syntactically valid marked file whose inserted semantic block
+has been corrupted.
 
 - [ ] **Step 2: Run the patcher test to verify it fails**
 
@@ -146,10 +149,11 @@ python3 tests/test_dsv4f_vision_exp_mod.py
 Expected: FAIL because `mods/dsv4f-vision-exp/patch_dsv4f_vision.py` does not
 exist.
 
-- [ ] **Step 3: Vendor the three exact Apache-2.0 Vision modules**
+- [ ] **Step 3: Vendor the three Apache-2.0 Vision modules**
 
-Read the files at the final selected community tree and add their contents
-unchanged under the mod overlay:
+Read the files at the final selected community tree. Add the processor and
+Vision tower under the mod overlay, then adapt the wrapper only for the pinned
+EAGLE3 interface and causal-attention boundary:
 
 ```bash
 git -C /tmp/a939-vllm-dsv4-vision show \
@@ -171,7 +175,7 @@ Create `UPSTREAM.md` with this exact provenance table:
 | --- | --- | --- | --- |
 | Vision modules and focused runtime behavior | `https://github.com/a939984672/vllm` | `7996ea0` (commits `f9ff02d`, `b706973`, `979e41f`, `ce9dd9c`, `7996ea0`) | Apache-2.0 |
 | Target source layout | `https://github.com/jasl/vllm` | `9ad62027bc84ca0ccbcc40853179312de770220c` | Apache-2.0 |
-| Larger runtime profile | `/home/arbusto/git/DeepSeek-v4-Flash-DSpark-2x-DGX-Spark` | `d97c808ec1c71b496badee6805dfd4818a8455d7` | MIT orchestration; Apache-2.0 vLLM-derived overlays |
+| Larger runtime profile | `https://github.com/MiaAI-Lab/DeepSeek-v4-Flash-DSpark-2x-DGX-Spark` | `d97c808ec1c71b496badee6805dfd4818a8455d7` | MIT orchestration; Apache-2.0 vLLM-derived overlays |
 ```
 
 - [ ] **Step 4: Implement exact, idempotent text transforms**
@@ -196,15 +200,14 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 PATCHERS: dict[str, Callable[[str], str]] = {
     "model_executor/layers/fused_moe/router/fused_topk_bias_router.py": patch_router,
     "model_executor/models/registry.py": patch_registry,
-    "models/deepseek_v4/common/ops/cache_utils.py": patch_cache_utils,
     "models/deepseek_v4/nvidia/model.py": patch_model,
     "models/deepseek_v4/nvidia/dspark.py": patch_dspark,
     "v1/engine/input_processor.py": patch_input_processor,
 }
 ```
 
-Implement the transformations from the five selected community commits, with
-these JASL-specific resolutions:
+Implement the compatible transformations from the selected community commits,
+with these JASL-specific resolutions:
 
 ```python
 # model.py: keep this before attaching the Vision router state.
@@ -229,10 +232,7 @@ if max_input_id > allowed_max:
 ```python
 # dspark.py: load both text and modality-specific gate biases.
 if name.endswith(".ffn.gate.bias_vl"):
-    name = name.replace(
-        ".ffn.gate.bias_vl",
-        ".ffn.gate.e_score_correction_bias_vl",
-    )
+    pass
 elif name.endswith(".ffn.gate.bias"):
     name = name.replace(
         ".ffn.gate.bias",
@@ -242,16 +242,20 @@ if name not in params_dict:
     continue
 ```
 
-Append `compute_vision_visible_window` after JASL's existing cache utility
-kernel without renaming or replacing `WINDOW_SIZE`. Port the complete
-`_compute_routing_vision` method and its `_compute_routing` dispatch from
-commit `979e41f`, and port the complete registry/model/hash-bias changes from
-the selected commit range.
+Do not append `compute_vision_visible_window` or set
+`mm_prefix_clamp_sliding_window`; the selected sparse-MLA backend cannot consume
+that path. Port `_compute_routing_vision`, and route both its result and the
+ordinary fused-top-k result through one helper containing the exact stock
+`num_fused_shared_experts > 0` append behavior. Make the outer Vision wrapper
+inherit `SupportsEagle3` and delegate
+`set_aux_hidden_state_layers()` and
+`get_eagle3_default_aux_hidden_state_layers()` to its inner language model.
 
 Every patch function must compile its result with
-`compile(result, relative_path, "exec")` before returning it and must verify
-its marker plus required semantic postconditions when called on an
-already-patched file.
+`compile(result, relative_path, "exec")` before returning it. An
+already-patched file is accepted only when the marker and every complete
+inserted semantic block each occur exactly once; marker-plus-substring checks
+are insufficient and must fail closed on corruption.
 
 - [ ] **Step 5: Implement transactional overlay installation**
 
@@ -404,7 +408,7 @@ required_vllm_args=(
     "--enable-chunked-prefill"
     "--async-scheduling"
     "--limit-mm-per-prompt '{\"image\":8}'"
-    "--hf-overrides '{\"architectures\":[\"DeepseekV4VForConditionalGeneration\"],\"is_mm_prefix_lm\":true}'"
+    "--hf-overrides '{\"architectures\":[\"DeepseekV4VForConditionalGeneration\"]}'"
     "--speculative-config '{\"method\":\"dspark\",\"num_speculative_tokens\":6,\"draft_sample_method\":\"probabilistic\"}'"
     "--tokenizer-mode deepseek_v4"
     "--tool-call-parser deepseek_v4"
@@ -424,8 +428,8 @@ grep -qF -- "--vllm-ref 9ad62027bc84ca0ccbcc40853179312de770220c" <<< "$output"
 grep -qF -- "--flashinfer-ref a0a6b019b9b27d49d209f85d028a1ae5a9b347d7" <<< "$output"
 ```
 
-Reject `nvfp4_ds_mla`, `--exp-b12x`, published Anemll/MiaAI image names, and
-the runner-owned distributed flags from the vLLM command. Read
+Reject `nvfp4_ds_mla`, `is_mm_prefix_lm`, `--exp-b12x`, published Anemll/MiaAI
+image names, and the runner-owned distributed flags from the vLLM command. Read
 `recipes/deepseek-v4-flash-0731-jasl.yaml` and assert its container is v2.
 
 - [ ] **Step 2: Run the recipe suite to verify the new test fails**
@@ -448,7 +452,7 @@ substitution on the command:
 ```yaml
 recipe_version: "1"
 name: DeepSeek-V4-Flash-Vision-Exp
-description: Locally built JASL v2 Vision-Exp runtime for a dual DGX Spark cluster
+description: Locally built JASL v2 Vision-Exp runtime for a two-node TP2 DGX Spark cluster
 
 model: deepseek-ai/DeepSeek-V4-Flash-Vision-Exp
 container: vllm-node-dsv4f:v2
@@ -508,7 +512,7 @@ command: |
       --enable-chunked-prefill \
       --async-scheduling \
       --limit-mm-per-prompt '{{"image":8}}' \
-      --hf-overrides '{{"architectures":["DeepseekV4VForConditionalGeneration"],"is_mm_prefix_lm":true}}' \
+      --hf-overrides '{{"architectures":["DeepseekV4VForConditionalGeneration"]}}' \
       --speculative-config '{{"method":"dspark","num_speculative_tokens":6,"draft_sample_method":"probabilistic"}}' \
       --tokenizer-mode deepseek_v4 \
       --enable-auto-tool-choice \
@@ -520,14 +524,18 @@ command: |
 Do not add `--moe-backend flashinfer_b12x`: v2's build metadata explicitly
 records B12X disabled.
 
-- [ ] **Step 4: Correct the stale 0731 JASL tag**
+- [ ] **Step 4: Correct the stale 0731 JASL tag and wording**
 
-Change only this line in `recipes/deepseek-v4-flash-0731-jasl.yaml`:
+Change the container line in `recipes/deepseek-v4-flash-0731-jasl.yaml`:
 
 ```diff
 -container: vllm-node-dsv4f:v1
 +container: vllm-node-dsv4f:v2
 ```
+
+In that same JASL recipe only, replace the stale B12X comment and description
+with wording that identifies the locally built JASL v2 serving stack. Do not
+alter the separate `recipes/deepseek-v4-flash-0731.yaml` B12X recipe.
 
 - [ ] **Step 5: Run recipe validation and explicit dry-runs**
 
@@ -584,14 +592,21 @@ tower and processor, enables image sentinels and `bias_vl` routing, and maps
 the Vision gate bias into DSpark draft layers. It does not replace CUDA kernels
 or install a different vLLM tree.
 
+The pinned sparse-MLA backend does not support multimodal-prefix attention, so
+image tokens use ordinary causal decoder attention. The Vision tower remains
+bidirectional internally, but this port does not implement bidirectional or
+full-visible image-token attention and does not claim full production
+equivalence with the community Vision branch.
+
 Use the qualified recipe:
 
 ```bash
 ./run-recipe.sh deepseek-v4-flash-vision-exp --setup
 ```
 
-The recipe is two-node only. Development tests do not prove GPU correctness;
-acceptance requires text, image, and DSpark smoke tests on the Spark pair.
+The recipe is two-node TP2 only, with one tensor-parallel rank per DGX Spark.
+Development tests do not prove GPU correctness; acceptance requires text,
+image, and DSpark smoke tests on the Spark pair.
 Remove the recipe's `mods/dsv4f-vision-exp` entry to roll back the runtime
 patch, and use the unmodified local v2 image for text-only serving.
 ````
@@ -610,10 +625,15 @@ Insert a `2026-09-02` entry immediately after `## CHANGELOG` in `README.md`:
 
 #### DeepSeek V4 Flash Vision-Exp on locally built DSpark v2
 
-Added the two-node `deepseek-v4-flash-vision-exp` recipe. It reproduces the
-JASL v2 SM121 source build, applies the focused Vision runtime port on both
-containers, and serves the larger 1M-context DSpark-6 profile with native
-`fp8_ds_mla` KV cache. The recipe does not use a published final runtime image.
+Added the two-node TP2 `deepseek-v4-flash-vision-exp` recipe, with one
+tensor-parallel rank per DGX Spark. It reproduces the JASL v2 SM121 source
+build, applies the focused Vision runtime port on both containers, and serves
+the larger 1M-context DSpark-6 profile with native `fp8_ds_mla` KV cache. The
+recipe does not use a published final runtime image.
+
+Image tokens use causal decoder attention: this port does not implement
+bidirectional or full-visible image-token attention and does not claim full
+production equivalence with the community Vision branch.
 
 ```bash
 ./run-recipe.sh deepseek-v4-flash-vision-exp --setup
@@ -660,6 +680,18 @@ python3 -m py_compile mods/dsv4f-vision-exp/patch_dsv4f_vision.py \
   mods/dsv4f-vision-exp/overlay/vllm/models/deepseek_v4/vision.py \
   mods/dsv4f-vision-exp/overlay/vllm/models/deepseek_v4/vision_model.py
 
+verify_root=$(mktemp -d /tmp/dsv4f-vision-check-XXXXXX)
+git -C /tmp/jasl-vllm-dsv4f-v2 archive \
+  9ad62027bc84ca0ccbcc40853179312de770220c vllm |
+  tar -x -C "$verify_root" --strip-components=1
+python3 mods/dsv4f-vision-exp/patch_dsv4f_vision.py \
+  --vllm-root "$verify_root" \
+  --overlay-root mods/dsv4f-vision-exp/overlay/vllm
+python3 mods/dsv4f-vision-exp/patch_dsv4f_vision.py \
+  --vllm-root "$verify_root" \
+  --overlay-root mods/dsv4f-vision-exp/overlay/vllm \
+  --check
+
 ./tests/test_recipes.sh -v
 ./tests/test_launch_cluster_image_sync.sh
 ./tests/test_launch_cluster_vllm_pr.sh
@@ -673,8 +705,9 @@ git diff --check
 git status --short --branch
 ```
 
-Expected: every test and syntax check exits zero; both dry-runs select v2; the
-final status contains only the intended committed feature history and no
+Expected: every test and syntax check exits zero; the exact pinned archive
+applies once and then reports `already installed`; both dry-runs select v2;
+the final status contains only the intended committed feature history and no
 uncommitted files.
 
 - [ ] **Step 6: Inspect the final committed delta**

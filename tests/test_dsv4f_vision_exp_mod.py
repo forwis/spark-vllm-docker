@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import importlib.util
 import tempfile
@@ -15,10 +16,75 @@ PATCHER_PATH = (
     Path(__file__).resolve().parents[1]
     / "mods/dsv4f-vision-exp/patch_dsv4f_vision.py"
 )
+VISION_MODEL_PATH = (
+    PATCHER_PATH.parent
+    / "overlay/vllm/models/deepseek_v4/vision_model.py"
+)
 SPEC = importlib.util.spec_from_file_location("dsv4f_vision_patcher", PATCHER_PATH)
 assert SPEC is not None and SPEC.loader is not None
 PATCHER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(PATCHER)
+
+
+class FakeTensor:
+    """Small 1D/2D tensor double for CPU-only router call tests."""
+
+    def __init__(self, values, *, dtype: str = "float", device: str = "cpu"):
+        self.values = tuple(
+            tuple(row) if isinstance(row, (list, tuple)) else row
+            for row in values
+        )
+        self.dtype = dtype
+        self.device = device
+
+    @property
+    def shape(self):
+        if self.values and isinstance(self.values[0], tuple):
+            return (len(self.values), len(self.values[0]))
+        return (len(self.values),)
+
+    def expand(self, rows: int, columns: int):
+        self_values = tuple(self.values)
+        if len(self_values) != columns:
+            raise AssertionError("invalid fake expand shape")
+        return FakeTensor(
+            [self_values for _ in range(rows)],
+            dtype=self.dtype,
+            device=self.device,
+        )
+
+
+class FakeTorch:
+    Tensor = FakeTensor
+    dtype = type("FakeDtype", (), {})
+    float32 = "float32"
+
+    @staticmethod
+    def arange(start, end, *, dtype, device):
+        return FakeTensor(range(start, end), dtype=dtype, device=device)
+
+    @staticmethod
+    def full(shape, value, *, dtype, device):
+        rows, columns = shape
+        return FakeTensor(
+            [[value] * columns for _ in range(rows)],
+            dtype=dtype,
+            device=device,
+        )
+
+    @staticmethod
+    def cat(tensors, dim=-1):
+        if dim != -1:
+            raise AssertionError("fake cat only supports the last dimension")
+        left, right = tensors
+        return FakeTensor(
+            [
+                (*left_row, *right_row)
+                for left_row, right_row in zip(left.values, right.values)
+            ],
+            dtype=left.dtype,
+            device=left.device,
+        )
 
 
 class Dsv4fVisionExpModTests(unittest.TestCase):
@@ -63,6 +129,26 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
                             hash_indices_table=self._hash_indices_table,
                             routed_scaling_factor=self.routed_scaling_factor,
                         )
+
+                        if self.num_fused_shared_experts > 0:
+                            m = topk_ids.shape[0]
+                            n = self.num_fused_shared_experts
+                            # global_num_experts counts only the routed experts; the fused
+                            # shared experts occupy the slots immediately after them, i.e. ids
+                            # [global_num_experts, global_num_experts + n).
+                            base = self.global_num_experts
+                            shared_ids = torch.arange(
+                                base, base + n, dtype=topk_ids.dtype, device=topk_ids.device
+                            ).expand(m, n)
+                            shared_w = torch.full(
+                                (m, n),
+                                self.shared_expert_weight,
+                                dtype=topk_weights.dtype,
+                                device=topk_weights.device,
+                            )
+                            topk_ids = torch.cat([topk_ids, shared_ids], dim=-1)
+                            topk_weights = torch.cat([topk_weights, shared_w], dim=-1)
+
                         return topk_weights, topk_ids
             """,
             "model_executor/models/registry.py": """
@@ -165,6 +251,76 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
                 digest.update(path.read_bytes())
         return digest.hexdigest()
 
+    @staticmethod
+    def vision_wrapper_class() -> ast.ClassDef:
+        tree = ast.parse(VISION_MODEL_PATH.read_text())
+        return next(
+            node
+            for node in tree.body
+            if isinstance(node, ast.ClassDef)
+            and node.name == "DeepseekV4VForConditionalGeneration"
+        )
+
+    def test_vision_wrapper_declares_pinned_eagle3_interface(self):
+        tree = ast.parse(VISION_MODEL_PATH.read_text())
+        imported_interfaces = {
+            alias.name
+            for node in tree.body
+            if isinstance(node, ast.ImportFrom)
+            and node.module == "vllm.model_executor.models.interfaces"
+            for alias in node.names
+        }
+        wrapper = self.vision_wrapper_class()
+        bases = {
+            base.id for base in wrapper.bases if isinstance(base, ast.Name)
+        }
+
+        self.assertIn("SupportsEagle3", imported_interfaces)
+        self.assertIn("SupportsEagle3", bases)
+
+    def test_vision_wrapper_delegates_pinned_eagle3_methods(self):
+        wrapper = self.vision_wrapper_class()
+        methods = {
+            node.name: node
+            for node in wrapper.body
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        }
+        expected = {
+            "set_aux_hidden_state_layers": False,
+            "get_eagle3_default_aux_hidden_state_layers": True,
+        }
+
+        for method_name, must_return in expected.items():
+            with self.subTest(method=method_name):
+                self.assertIn(method_name, methods)
+                method = methods[method_name]
+                matching_calls = [
+                    node
+                    for node in ast.walk(method)
+                    if isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == method_name
+                    and isinstance(node.func.value, ast.Attribute)
+                    and node.func.value.attr == "language_model"
+                    and isinstance(node.func.value.value, ast.Name)
+                    and node.func.value.value.id == "self"
+                ]
+                self.assertEqual(len(matching_calls), 1)
+                call = matching_calls[0]
+                if must_return:
+                    self.assertTrue(
+                        any(
+                            isinstance(node, ast.Return)
+                            and node.value is call
+                            for node in ast.walk(method)
+                        )
+                    )
+                    self.assertEqual(call.args, [])
+                else:
+                    self.assertEqual(len(call.args), 1)
+                    self.assertIsInstance(call.args[0], ast.Name)
+                    self.assertEqual(call.args[0].id, "layers")
+
     def test_patch_tree_installs_complete_port_idempotently(self):
         self.root, overlay = self.make_fixture()
         changed = PATCHER.patch_tree(self.root, overlay)
@@ -173,7 +329,6 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
             {
                 "model_executor/layers/fused_moe/router/fused_topk_bias_router.py",
                 "model_executor/models/registry.py",
-                "models/deepseek_v4/common/ops/cache_utils.py",
                 "models/deepseek_v4/nvidia/model.py",
                 "models/deepseek_v4/nvidia/dspark.py",
                 "v1/engine/input_processor.py",
@@ -187,8 +342,6 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
         self.assertIn("def _compute_routing_vision", self.read("model_executor/layers/fused_moe/router/fused_topk_bias_router.py"))
         self.assertIn("self._sync_fused_moe_metadata()", self.read("models/deepseek_v4/nvidia/model.py"))
         self.assertIn("_router.bias_vl = self.gate.bias_vl", self.read("models/deepseek_v4/nvidia/model.py"))
-        self.assertIn("WINDOW_SIZE", self.read("models/deepseek_v4/common/ops/cache_utils.py"))
-        self.assertIn("def compute_vision_visible_window", self.read("models/deepseek_v4/common/ops/cache_utils.py"))
         self.assertIn("model_vocab_size + 4", self.read("v1/engine/input_processor.py"))
         model = self.read("models/deepseek_v4/nvidia/model.py")
         self.assertIn("self.gate.bias_vl = None", model)
@@ -208,8 +361,27 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
         root, overlay = self.make_fixture()
         before = self.hash_tree(root)
         expected = PATCHER.patch_tree(root, overlay, check=True)
-        self.assertEqual(len(expected), 9)
+        self.assertEqual(len(expected), 8)
         self.assertEqual(self.hash_tree(root), before)
+
+    def test_causal_port_does_not_install_mm_prefix_artifacts(self):
+        self.assertNotIn(
+            "models/deepseek_v4/common/ops/cache_utils.py",
+            PATCHER.PATCHERS,
+        )
+        wrapper = self.vision_wrapper_class()
+        class_attributes = {
+            target.id
+            for node in wrapper.body
+            if isinstance(node, (ast.Assign, ast.AnnAssign))
+            for target in (
+                node.targets
+                if isinstance(node, ast.Assign)
+                else [node.target]
+            )
+            if isinstance(target, ast.Name)
+        }
+        self.assertNotIn("mm_prefix_clamp_sliding_window", class_attributes)
 
     def test_nonmega_forward_keeps_raw_ids_before_mega_guard(self):
         self.root, overlay = self.make_fixture()
@@ -223,12 +395,107 @@ class Dsv4fVisionExpModTests(unittest.TestCase):
         )
         self.assertIn("image_mask = input_ids >= self.vl_vocab_size", router)
 
+    def test_text_and_vision_routes_append_fused_shared_experts(self):
+        self.root, overlay = self.make_fixture()
+        PATCHER.patch_tree(self.root, overlay)
+        router_source = self.read(
+            "model_executor/layers/fused_moe/router/fused_topk_bias_router.py"
+        ).replace("import torch\n", "", 1)
+        namespace = {"torch": FakeTorch}
+        exec(compile(router_source, "patched_router.py", "exec"), namespace)
+
+        stock_calls = []
+
+        def stock_route(**kwargs):
+            stock_calls.append(kwargs)
+            return (
+                FakeTensor([[0.6, 0.4], [0.7, 0.3]]),
+                FakeTensor([[1, 2], [3, 4]], dtype="int"),
+            )
+
+        namespace["fused_topk_bias"] = stock_route
+        router = namespace["FusedTopKBiasRouter"]()
+        router.bias_vl = None
+        router.e_score_correction_bias = None
+        router.scoring_func = "sigmoid"
+        router.top_k = 2
+        router.renormalize = True
+        router._hash_indices_table = None
+        router.routed_scaling_factor = 1.0
+        router.num_fused_shared_experts = 2
+        router.shared_expert_weight = 0.25
+        router.global_num_experts = 10
+
+        text_weights, text_ids = router._compute_routing(
+            FakeTensor([[1.0], [2.0]]),
+            FakeTensor([[0.1], [0.2]]),
+            None,
+            input_ids=object(),
+        )
+        self.assertEqual(len(stock_calls), 1)
+        self.assertEqual(text_ids.values, ((1, 2, 10, 11), (3, 4, 10, 11)))
+        self.assertEqual(
+            text_weights.values,
+            ((0.6, 0.4, 0.25, 0.25), (0.7, 0.3, 0.25, 0.25)),
+        )
+
+        vision_calls = []
+        router.bias_vl = object()
+        router._compute_routing_vision = lambda *args: (
+            vision_calls.append(args)
+            or (
+                FakeTensor([[0.9, 0.1], [0.8, 0.2]]),
+                FakeTensor([[5, 6], [7, 8]], dtype="int"),
+            )
+        )
+        vision_weights, vision_ids = router._compute_routing(
+            FakeTensor([[1.0], [2.0]]),
+            FakeTensor([[0.1], [0.2]]),
+            None,
+            input_ids=object(),
+        )
+        self.assertEqual(len(stock_calls), 1)
+        self.assertEqual(len(vision_calls), 1)
+        self.assertEqual(vision_ids.values, ((5, 6, 10, 11), (7, 8, 10, 11)))
+        self.assertEqual(
+            vision_weights.values,
+            ((0.9, 0.1, 0.25, 0.25), (0.8, 0.2, 0.25, 0.25)),
+        )
+
     def test_unknown_anchor_fails_without_partial_writes(self):
         root, overlay = self.make_fixture()
         target = root / "models/deepseek_v4/nvidia/dspark.py"
         target.write_text("class UnknownDSpark: pass\n")
         before = self.hash_tree(root)
         with self.assertRaisesRegex(PATCHER.PatchError, "dspark bias loader"):
+            PATCHER.patch_tree(root, overlay)
+        self.assertEqual(self.hash_tree(root), before)
+
+    def test_marked_semantic_corruption_is_rejected_without_writes(self):
+        root, overlay = self.make_fixture()
+        PATCHER.patch_tree(root, overlay)
+        target = (
+            root
+            / "model_executor/layers/fused_moe/router/fused_topk_bias_router.py"
+        )
+        installed = target.read_text()
+        corrupted = installed.replace(
+            "weights = weights * self.routed_scaling_factor",
+            "weights = weights + self.routed_scaling_factor",
+            1,
+        )
+        self.assertNotEqual(corrupted, installed)
+        self.assertIn(
+            "# dsv4f-vision-exp: modality-specific fused routing",
+            corrupted,
+        )
+        self.assertIn("def _compute_routing_vision", corrupted)
+        self.assertIn("def _append_fused_shared_experts", corrupted)
+        self.assertIn("return self._append_fused_shared_experts", corrupted)
+        target.write_text(corrupted)
+        before = self.hash_tree(root)
+
+        with self.assertRaisesRegex(PATCHER.PatchError, "invalid already-patched"):
             PATCHER.patch_tree(root, overlay)
         self.assertEqual(self.hash_tree(root), before)
 

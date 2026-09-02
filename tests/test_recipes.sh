@@ -1570,7 +1570,7 @@ test_dsv4f_vision_exp_profile() {
         "--enable-chunked-prefill"
         "--async-scheduling"
         "--limit-mm-per-prompt '{\"image\":8}'"
-        "--hf-overrides '{\"architectures\":[\"DeepseekV4VForConditionalGeneration\"],\"is_mm_prefix_lm\":true}'"
+        "--hf-overrides '{\"architectures\":[\"DeepseekV4VForConditionalGeneration\"]}'"
         "--speculative-config '{\"method\":\"dspark\",\"num_speculative_tokens\":6,\"draft_sample_method\":\"probabilistic\"}'"
         "--tokenizer-mode deepseek_v4"
         "--tool-call-parser deepseek_v4"
@@ -1605,6 +1605,7 @@ test_dsv4f_vision_exp_profile() {
 
     for unexpected in \
         "nvfp4_ds_mla" \
+        "is_mm_prefix_lm" \
         "--exp-b12x" \
         "Anemll" \
         "MiaAI" \

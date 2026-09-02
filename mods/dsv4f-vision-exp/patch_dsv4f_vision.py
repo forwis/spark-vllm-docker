@@ -23,9 +23,9 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
     return text.replace(old, new, 1)
 
 
-def _compiled(text: str, relative: str, marker: str, *required: str) -> str:
+def _compiled_exact(text: str, relative: str, marker: str, *blocks: str) -> str:
     compile(text, relative, "exec")
-    if marker not in text or any(value not in text for value in required):
+    if text.count(marker) != 1 or any(text.count(block) != 1 for block in blocks):
         raise PatchError(f"invalid already-patched {relative}")
     return text
 
@@ -33,8 +33,6 @@ def _compiled(text: str, relative: str, marker: str, *required: str) -> str:
 def patch_router(text: str) -> str:
     relative = "model_executor/layers/fused_moe/router/fused_topk_bias_router.py"
     marker = "# dsv4f-vision-exp: modality-specific fused routing"
-    if marker in text:
-        return _compiled(text, relative, marker, "def _compute_routing_vision", "return self._compute_routing_vision")
     old = '''        \"\"\"Compute routing using fused top-k with bias.\"\"\"
         topk_weights, topk_ids = fused_topk_bias(
 '''
@@ -42,10 +40,12 @@ def patch_router(text: str) -> str:
         # dsv4f-vision-exp: modality-specific fused routing
         bias_vl = getattr(self, "bias_vl", None)
         if bias_vl is not None and input_ids is not None:
-            return self._compute_routing_vision(router_logits, input_ids, indices_type)
+            topk_weights, topk_ids = self._compute_routing_vision(
+                router_logits, input_ids, indices_type
+            )
+            return self._append_fused_shared_experts(topk_weights, topk_ids)
         topk_weights, topk_ids = fused_topk_bias(
 '''
-    result = replace_once(text, old, new, "fused router dispatch")
     anchor = '''    def _compute_routing(
 '''
     method = '''    def _compute_routing_vision(
@@ -85,15 +85,95 @@ def patch_router(text: str) -> str:
         return weights, indices
 
 '''
-    result = replace_once(result, anchor, method + anchor, "fused router method")
-    return _compiled(result, relative, marker, "def _compute_routing_vision", "return self._compute_routing_vision")
+    helper = '''    def _append_fused_shared_experts(
+        self,
+        topk_weights: torch.Tensor,
+        topk_ids: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        if self.num_fused_shared_experts > 0:
+            m = topk_ids.shape[0]
+            n = self.num_fused_shared_experts
+            # global_num_experts counts only the routed experts; the fused
+            # shared experts occupy the slots immediately after them, i.e. ids
+            # [global_num_experts, global_num_experts + n).
+            base = self.global_num_experts
+            shared_ids = torch.arange(
+                base, base + n, dtype=topk_ids.dtype, device=topk_ids.device
+            ).expand(m, n)
+            shared_w = torch.full(
+                (m, n),
+                self.shared_expert_weight,
+                dtype=topk_weights.dtype,
+                device=topk_weights.device,
+            )
+            topk_ids = torch.cat([topk_ids, shared_ids], dim=-1)
+            topk_weights = torch.cat([topk_weights, shared_w], dim=-1)
+
+        return topk_weights, topk_ids
+
+'''
+    stock_append = '''
+        if self.num_fused_shared_experts > 0:
+            m = topk_ids.shape[0]
+            n = self.num_fused_shared_experts
+            # global_num_experts counts only the routed experts; the fused
+            # shared experts occupy the slots immediately after them, i.e. ids
+            # [global_num_experts, global_num_experts + n).
+            base = self.global_num_experts
+            shared_ids = torch.arange(
+                base, base + n, dtype=topk_ids.dtype, device=topk_ids.device
+            ).expand(m, n)
+            shared_w = torch.full(
+                (m, n),
+                self.shared_expert_weight,
+                dtype=topk_weights.dtype,
+                device=topk_weights.device,
+            )
+            topk_ids = torch.cat([topk_ids, shared_ids], dim=-1)
+            topk_weights = torch.cat([topk_weights, shared_w], dim=-1)
+
+        return topk_weights, topk_ids
+'''
+    shared_return = '''
+        return self._append_fused_shared_experts(topk_weights, topk_ids)
+'''
+    if marker in text:
+        return _compiled_exact(
+            text,
+            relative,
+            marker,
+            new,
+            method,
+            helper,
+            shared_return,
+        )
+    result = replace_once(text, old, new, "fused router dispatch")
+    result = replace_once(
+        result,
+        stock_append,
+        shared_return,
+        "fused shared-expert append",
+    )
+    result = replace_once(
+        result,
+        anchor,
+        method + helper + anchor,
+        "fused router methods",
+    )
+    return _compiled_exact(
+        result,
+        relative,
+        marker,
+        new,
+        method,
+        helper,
+        shared_return,
+    )
 
 
 def patch_registry(text: str) -> str:
     relative = "model_executor/models/registry.py"
     marker = "# dsv4f-vision-exp: DeepSeek V4 Vision-Exp"
-    if marker in text:
-        return _compiled(text, relative, marker, "DeepseekV4VForConditionalGeneration")
     old = '''_MULTIMODAL_MODELS = {
     # [Decoder-only]
 '''
@@ -105,65 +185,23 @@ def patch_registry(text: str) -> str:
     ),
     # [Decoder-only]
 '''
-    return _compiled(replace_once(text, old, new, "multimodal registry"), relative, marker, "DeepseekV4VForConditionalGeneration")
-
-
-def patch_cache_utils(text: str) -> str:
-    relative = "models/deepseek_v4/common/ops/cache_utils.py"
-    marker = "# dsv4f-vision-exp: Vision-visible sparse attention window"
     if marker in text:
-        return _compiled(text, relative, marker, "def compute_vision_visible_window", "WINDOW_SIZE")
-    if text.count("def _build_flashinfer_mixed_sparse_indices_kernel") != 1:
-        raise PatchError("expected exactly one cache utility kernel; found " + str(text.count("def _build_flashinfer_mixed_sparse_indices_kernel")))
-    result = text.rstrip() + '''
-
-
-# dsv4f-vision-exp: Vision-visible sparse attention window
-def compute_vision_visible_window(
-    input_ids: torch.Tensor,
-    vocab_size: int,
-    window_size: int,
-    max_image_tokens: int = 384,
-) -> tuple[torch.Tensor, torch.Tensor]:
-    \"\"\"Return per-token visible extents for Vision image spans.\"\"\"
-    idx = torch.arange(input_ids.shape[-1], dtype=torch.int32, device=input_ids.device)
-    is_start = input_ids == (vocab_size + 0)
-    is_end = input_ids == (vocab_size + 4)
-    valid = (is_start.cumsum(-1) > is_end.cumsum(-1)) | is_end
-    starts = torch.where(is_start, idx, torch.zeros_like(idx)).cummax(-1)[0]
-    left = (idx - starts) * valid
-    ends = (
-        torch.where(is_end, idx, torch.full_like(idx, input_ids.shape[-1]))
-        .flip(-1)
-        .cummin(-1)[0]
-        .flip(-1)
+        return _compiled_exact(text, relative, marker, new)
+    return _compiled_exact(
+        replace_once(text, old, new, "multimodal registry"),
+        relative,
+        marker,
+        new,
     )
-    right = (ends - idx) * valid
-    left = left.clamp(max=max_image_tokens - 1)
-    right = right.clamp(max=max_image_tokens)
-    return left.to(torch.int32), right.to(torch.int32)
-'''
-    return _compiled(result, relative, marker, "def compute_vision_visible_window", "WINDOW_SIZE")
 
 
 def patch_model(text: str) -> str:
     relative = "models/deepseek_v4/nvidia/model.py"
     marker = "# dsv4f-vision-exp: Vision gate state"
-    if marker in text:
-        return _compiled(
-            text,
-            relative,
-            marker,
-            "self.gate.bias_vl = None",
-            "_router.bias_vl = self.gate.bias_vl",
-            "input_ids = torch.where(",
-        )
-    result = replace_once(
-        text,
-        '''        self.gate.e_score_correction_bias = None
+    gate_old = '''        self.gate.e_score_correction_bias = None
         self.gate.tid2eid = None
-''',
-        '''        self.gate.e_score_correction_bias = None
+'''
+    gate_new = '''        self.gate.e_score_correction_bias = None
         # dsv4f-vision-exp: Vision gate state
         self.vl_vocab_size = config.vocab_size
         self.gate.bias_vl = None
@@ -173,44 +211,32 @@ def patch_model(text: str) -> str:
                 requires_grad=False,
             )
         self.gate.tid2eid = None
-''',
-        "Vision gate initialization",
-    )
-    result = replace_once(
-        result,
-        '''        self._sync_fused_moe_metadata()
-''',
-        '''        self._sync_fused_moe_metadata()
+'''
+    sync_old = '''        self._sync_fused_moe_metadata()
+'''
+    sync_new = '''        self._sync_fused_moe_metadata()
         if self.gate.bias_vl is not None:
             _router = getattr(self.experts, "router", None)
             if _router is not None:
                 _router.bias_vl = self.gate.bias_vl
                 _router.vl_vocab_size = self.vl_vocab_size
-''',
-        "JASL fused MoE metadata synchronization",
-    )
-    result = replace_once(
-        result,
-        '''        for name, loaded_weight in weights:
+'''
+    load_old = '''        for name, loaded_weight in weights:
             if pad_shared_expert and ".shared_experts." in name:
-''',
-        '''        for name, loaded_weight in weights:
+'''
+    load_new = '''        for name, loaded_weight in weights:
             if (
                 name.endswith(".ffn.gate.e_score_correction_bias")
                 and name not in params_dict
             ):
                 continue
             if pad_shared_expert and ".shared_experts." in name:
-''',
-        "hash-gate routing bias loader",
-    )
-    result = replace_once(
-        result,
-        '''        if not self.use_mega_moe:
+'''
+    guard_old = '''        if not self.use_mega_moe:
             return self._forward_fused_moe(hidden_states, input_ids)
 
-''',
-        '''        if not self.use_mega_moe:
+'''
+    guard_new = '''        if not self.use_mega_moe:
             return self._forward_fused_moe(hidden_states, input_ids)
 
         # Image sentinel ids are outside the hash table's vocabulary.
@@ -221,30 +247,55 @@ def patch_model(text: str) -> str:
             image_mask = input_ids >= self.vl_vocab_size
             input_ids = torch.where(
                 image_mask, torch.zeros_like(input_ids), input_ids)
-''',
+'''
+    if marker in text:
+        return _compiled_exact(
+            text,
+            relative,
+            marker,
+            gate_new,
+            sync_new,
+            load_new,
+            guard_new,
+        )
+    result = replace_once(
+        text,
+        gate_old,
+        gate_new,
+        "Vision gate initialization",
+    )
+    result = replace_once(
+        result,
+        sync_old,
+        sync_new,
+        "JASL fused MoE metadata synchronization",
+    )
+    result = replace_once(
+        result,
+        load_old,
+        load_new,
+        "hash-gate routing bias loader",
+    )
+    result = replace_once(
+        result,
+        guard_old,
+        guard_new,
         "mega-MoE image sentinel guard",
     )
-    return _compiled(
+    return _compiled_exact(
         result,
         relative,
         marker,
-        "self.gate.bias_vl = None",
-        "_router.bias_vl = self.gate.bias_vl",
-        "input_ids = torch.where(",
+        gate_new,
+        sync_new,
+        load_new,
+        guard_new,
     )
 
 
 def patch_dspark(text: str) -> str:
     relative = "models/deepseek_v4/nvidia/dspark.py"
     marker = "# dsv4f-vision-exp: DSpark modality-specific gate bias"
-    if marker in text:
-        return _compiled(
-            text,
-            relative,
-            marker,
-            'name.endswith(".ffn.gate.bias_vl")',
-            "if name not in params_dict",
-        )
     old = '''                if name.endswith(".ffn.gate.bias"):
                     name = name.replace(
                         ".ffn.gate.bias",
@@ -264,20 +315,19 @@ def patch_dspark(text: str) -> str:
                     continue
                 param = params_dict[name]
 '''
-    return _compiled(
+    if marker in text:
+        return _compiled_exact(text, relative, marker, new)
+    return _compiled_exact(
         replace_once(text, old, new, "dspark bias loader"),
         relative,
         marker,
-        'name.endswith(".ffn.gate.bias_vl")',
-        "if name not in params_dict",
+        new,
     )
 
 
 def patch_input_processor(text: str) -> str:
     relative = "v1/engine/input_processor.py"
     marker = "# dsv4f-vision-exp: Vision sentinel validation"
-    if marker in text:
-        return _compiled(text, relative, marker, "model_vocab_size + 4", "min_input_id")
     # Keep the source's indentation because the fixture intentionally uses a
     # compact validator while JASL nests this block under ``if prompt_ids``.
     max_line = re.compile(r"(?m)^(?P<indent>[ \t]*)max_input_id = max\(prompt_ids, default=0\)$")
@@ -286,7 +336,7 @@ def patch_input_processor(text: str) -> str:
         raise PatchError(f"expected exactly one input token bounds; found {len(matches)}")
     match = matches[0]
     indent = match.group("indent")
-    new = (
+    min_block = (
         f"{indent}min_input_id = min(prompt_ids, default=0)\n"
         f"{indent}if min_input_id < 0:\n"
         f"{indent}    raise VLLMValidationError(\n"
@@ -294,11 +344,10 @@ def patch_input_processor(text: str) -> str:
         f"{indent}    )\n"
         f"{indent}max_input_id = max(prompt_ids, default=0)"
     )
-    result = text[: match.start()] + new + text[match.end() :]
     model_line = re.compile(
         r"(?m)^(?P<indent>[ \t]*)model_vocab_size = model_config\.get_vocab_size\(\)$"
     )
-    matches = list(model_line.finditer(result))
+    matches = list(model_line.finditer(text))
     if len(matches) != 1:
         raise PatchError(
             f"expected exactly one input model vocabulary lookup; found {len(matches)}"
@@ -313,20 +362,45 @@ def patch_input_processor(text: str) -> str:
         f"{indent}if int(getattr(hf_cfg, \"vision_n_layers\", 0) or 0) > 0:\n"
         f"{indent}    allowed_max = max(allowed_max, model_vocab_size + 4)"
     )
+    comparison = "max_input_id > allowed_max"
+    if marker in text:
+        return _compiled_exact(
+            text,
+            relative,
+            marker,
+            min_block,
+            allowed,
+            comparison,
+        )
+
+    max_match = list(max_line.finditer(text))[0]
+    result = (
+        text[: max_match.start()]
+        + min_block
+        + text[max_match.end() :]
+    )
+    matches = list(model_line.finditer(result))
+    match = matches[0]
     result = result[: match.start()] + allowed + result[match.end() :]
     result = replace_once(
         result,
         "max_input_id > max(tokenizer.max_token_id, model_vocab_size - 1)",
-        "max_input_id > allowed_max",
+        comparison,
         "input maximum token validation",
     )
-    return _compiled(result, relative, marker, "model_vocab_size + 4", "min_input_id")
+    return _compiled_exact(
+        result,
+        relative,
+        marker,
+        min_block,
+        allowed,
+        comparison,
+    )
 
 
 PATCHERS: dict[str, Callable[[str], str]] = {
     "model_executor/layers/fused_moe/router/fused_topk_bias_router.py": patch_router,
     "model_executor/models/registry.py": patch_registry,
-    "models/deepseek_v4/common/ops/cache_utils.py": patch_cache_utils,
     "models/deepseek_v4/nvidia/model.py": patch_model,
     "models/deepseek_v4/nvidia/dspark.py": patch_dspark,
     "v1/engine/input_processor.py": patch_input_processor,
