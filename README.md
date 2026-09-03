@@ -168,6 +168,56 @@ For periodic maintenance, I recommend using a filter: `docker builder prune --fi
 
 ## CHANGELOG
 
+### 2026-09-04
+
+#### Qwen3.8 Flash Next native-context hardening and 1M canary
+
+The two-Spark Qwen3.8 Flash Next profile now builds from a digest-pinned
+official image and applies a fail-closed runtime mod for known prefix/MTP,
+Mamba-state alignment, slot-mapping bounds, and deterministic NVFP4 MoE
+issues. The ordinary recipe uses the model's native 262,144-token context,
+`--mamba-block-size 1024`, two sequences, a 2,048-token batch, and 0.85 memory
+utilization. Prefix caching and MTP=3 remain enabled, but this is a hardened
+profile—not a production-stability qualification.
+
+The previous 1M YaRN override has moved to
+`qwen3.8-flash-next-nvfp4-1m-canary`. That recipe is explicitly experimental,
+uses one sequence and a 1,024-token batch, and must be isolated from persistent
+service traffic. The [NVIDIA long-agent report was withdrawn after crashes at
+roughly 29K and 50.6K context](https://forums.developer.nvidia.com/t/withdrawn-qwen3-8-flash-next-nvfp4-on-2x-gb10-long-agent-crash-isolation-and-historical-tp2-measurements/381836),
+and the independent [vLLM deep-prefill wedge remains
+open](https://github.com/vllm-project/vllm/issues/54629). The latter survives
+disabling MTP, prefix caching, CUDA graphs, and PLE variants, so no recipe flag
+or backport here is claimed to fix it. NVIDIA forum reports of successful
+262K/500K starts and bounded benchmarks are useful observations, but do not
+supersede those repeated-prefill failures.
+
+Upstream inputs for the mod are vLLM
+[#48375](https://github.com/vllm-project/vllm/pull/48375),
+[#53798](https://github.com/vllm-project/vllm/pull/53798),
+[#54076](https://github.com/vllm-project/vllm/pull/54076),
+[#54296](https://github.com/vllm-project/vllm/pull/54296), and
+[#54948](https://github.com/vllm-project/vllm/pull/54948). The official
+[Qwen recipe](https://github.com/vllm-project/recipes/blob/main/models/Qwen/Qwen3.8-Flash-Next.yaml)
+also notes that a full 262K request was not tested.
+
+After an operator launches the native profile, exercise growing shared-prefix,
+tool-result, and recall transitions with:
+
+```bash
+./examples/qwen38-flash-next-stability-probe.py \
+  --base-url http://127.0.0.1:54351 --profile native
+```
+
+For the isolated 1M canary, use `--profile canary`. The probe covers requested
+depths 32K, 48K, 64K, 73,728, 77,824, 100K, 131K, and 250K; canary mode adds
+500K and 950K. It fails on an unreachable health endpoint, malformed HTTP,
+wrong planted-value recall, insufficient reached context, or no positive
+prefix-cache/MTP metric activity. During and after the soak, operators must
+also verify zero container restarts and no GPU Xid events on every host, for
+example with `docker inspect` restart counts and the host kernel journal. The
+probe cannot prove the absence of a kernel wedge by itself.
+
 ### 2026-09-02
 
 #### DeepSeek V4 Flash Vision-Exp on locally built DSpark v2
@@ -2012,6 +2062,7 @@ The repository includes several pre-configured mods in the `mods/` directory:
 - **fix-qwen3.5-chat-template/** and **fix-qwen3.6-chat-template/**: Install fixed chat templates used by the Qwen3.5 and Qwen3.6 recipes.
 - **fix-qwen3.5-autoround/**, **fix-qwen3-next-autoround/**, and **fix-qwen35-tp4-marlin/**: Model-specific Qwen AutoRound and Marlin compatibility fixes.
 - **fix-qwen3-coder-next/**: Qwen3-Coder-Next runtime and performance fixes.
+- **qwen38-flash-next-stability/**: Fail-closed backports for the digest-pinned Qwen3.8 Flash Next image, covering prefix/MTP replay, Mamba state-grid alignment, slot-mapping bounds, and deterministic FlashInfer CUTLASS NVFP4 finalization. It does not claim to fix the open deep-prefill wedge.
 - **radixark-dspark/**: Routes Qwen DSpark checkpoints such as `RadixArk/Qwen3.8-27B-DSpark` to vLLM's Qwen3 DSpark loader instead of the DeepSeek-V4 loader.
 - **dspark-instanttensor/**: Filters embedded `mtp.*` DSpark draft weights before InstantTensor or safetensors I/O, preventing a second full-checkpoint load.
 - **gpu-mem-util-gb/**: Adds experimental `--gpu-memory-utilization-gb` support.

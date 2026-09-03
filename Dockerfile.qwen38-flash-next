@@ -1,4 +1,4 @@
-FROM vllm/vllm-openai:qwen38-flash-next
+FROM vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8
 
 ARG BUILD_JOBS=16
 ARG TORCH_CUDA_ARCH_LIST=12.1a

@@ -1360,14 +1360,17 @@ test_readme_glm_flash_cluster() {
     fi
 }
 
-# Test: Qwen3.8 Flash Next uses the qualified source build and TP2 profile
+# Test: Qwen3.8 Flash Next separates the hardened native profile from 1M canary
 test_qwen38_flash_next_nvfp4_profile() {
-    log_test "Qwen3.8 Flash Next NVFP4 qualified TP2 profile"
+    log_test "Qwen3.8 Flash Next hardened native profile and 1M canary"
 
     local output
     local status
     local vllm_cmd
     local launch_cmd
+    local canary_output
+    local canary_vllm_cmd
+    local canary_launch_cmd
     local all_passed=true
 
     output=$("$PROJECT_DIR/run-recipe.py" qwen3.8-flash-next-nvfp4 \
@@ -1375,6 +1378,11 @@ test_qwen38_flash_next_nvfp4_profile() {
     status=$?
     vllm_cmd=$(extract_vllm_command "$output")
     launch_cmd=$(extract_launch_cmd "$output")
+    canary_output=$("$PROJECT_DIR/run-recipe.py" \
+        qwen3.8-flash-next-nvfp4-1m-canary --config /dev/null --dry-run \
+        -n "10.0.0.1,10.0.0.2" 2>&1)
+    canary_vllm_cmd=$(extract_vllm_command "$canary_output")
+    canary_launch_cmd=$(extract_launch_cmd "$canary_output")
 
     if [[ $status -ne 0 ]]; then
         all_passed=false
@@ -1382,8 +1390,14 @@ test_qwen38_flash_next_nvfp4_profile() {
     for expected in \
         "Inferact/Qwen3.8-Flash-Next-NVFP4" \
         "--tensor-parallel-size 2" \
-        "--gpu-memory-utilization 0.9" \
+        "--gpu-memory-utilization 0.85" \
+        "--max-model-len 262144" \
+        "--max-num-seqs 2" \
+        "--max-num-batched-tokens 2048" \
+        "--mamba-block-size 1024" \
         "--enforce-eager" \
+        "--enable-prefix-caching" \
+        "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":3}'" \
         "--reasoning-parser qwen3" \
         "--tool-call-parser qwen3_coder" \
         "--enable-auto-tool-choice"; do
@@ -1396,6 +1410,41 @@ test_qwen38_flash_next_nvfp4_profile() {
         all_passed=false
         log_verbose "Qwen launch command does not use vllm-node-qwen"
     fi
+    if ! echo "$launch_cmd" | grep -qF -- \
+        "--apply-mod mods/qwen38-flash-next-stability"; then
+        all_passed=false
+        log_verbose "Qwen native profile does not apply its stability mod"
+    fi
+    for unexpected in \
+        "--max-model-len 1000000" \
+        "VLLM_ALLOW_LONG_MAX_MODEL_LEN" \
+        "--hf-overrides"; do
+        if echo "$output" | grep -qF -- "$unexpected"; then
+            all_passed=false
+            log_verbose "Qwen native profile unexpectedly includes: $unexpected"
+        fi
+    done
+    for expected in \
+        "--gpu-memory-utilization 0.85" \
+        "--max-model-len 1000000" \
+        "--max-num-seqs 1" \
+        "--max-num-batched-tokens 1024" \
+        "--mamba-block-size 1024" \
+        "--enable-prefix-caching" \
+        "--speculative-config '{\"method\":\"mtp\",\"num_speculative_tokens\":3}'" \
+        "--hf-overrides"; do
+        if ! echo "$canary_vllm_cmd" | grep -qF -- "$expected"; then
+            all_passed=false
+            log_verbose "Missing Qwen 1M canary argument: $expected"
+        fi
+    done
+    if ! echo "$canary_launch_cmd" | grep -qF -- \
+        "--apply-mod mods/qwen38-flash-next-stability" \
+        || ! echo "$canary_output" | grep -qF -- \
+        "VLLM_ALLOW_LONG_MAX_MODEL_LEN=1"; then
+        all_passed=false
+        log_verbose "Qwen 1M canary is missing its stability mod or long-context opt-in"
+    fi
     if ! echo "$output" | grep -qF -- \
         "Build args: --qwen38-flash-next"; then
         all_passed=false
@@ -1407,7 +1456,7 @@ test_qwen38_flash_next_nvfp4_profile() {
     fi
 
     if [[ "$all_passed" == "true" ]]; then
-        log_pass "Qwen3.8 Flash Next uses the qualified TP2 profile"
+        log_pass "Qwen3.8 Flash Next separates hardened native and 1M canary profiles"
     else
         log_fail "Qwen3.8 Flash Next qualified TP2 profile is incomplete"
         log_verbose "$output"

@@ -266,8 +266,8 @@ test_qwen38_flash_next_builds_from_official_base() {
     assert_log_contains '^docker build -f Dockerfile\.qwen38-flash-next -t vllm-node-qwen '
     assert_log_not_contains '^docker build --target (flashinfer-export|vllm-export) '
     if [ "$(sed -n '1p' "$PROJECT_DIR/Dockerfile.qwen38-flash-next")" != \
-         'FROM vllm/vllm-openai:qwen38-flash-next' ]; then
-        fail "Qwen3.8 Flash Next build does not use the official model base image"
+         'FROM vllm/vllm-openai:qwen38-flash-next@sha256:fc120ece0a388cc0aa1caad4a9f1cd92113484ab7ec2fd0efadd62585be05bf8' ]; then
+        fail "Qwen3.8 Flash Next build does not use the digest-pinned official model base image"
     fi
     pass "--qwen38-flash-next locally builds from the official Qwen base"
 }

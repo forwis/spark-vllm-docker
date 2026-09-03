@@ -1,16 +1,13 @@
-# Recipe: Qwen3.8-Flash-Next-NVFP4 on two DGX Spark nodes.
-# References:
-# This is a hardened native-context profile, not a production qualification.
-# A distinct experimental recipe carries the 1M YaRN override.
-# https://github.com/vllm-project/vllm/issues/54629
-# https://forums.developer.nvidia.com/t/381836
-# Before launch, reclaim filesystem caches on every host using an
-# operator-approved host procedure. This recipe intentionally does not run
-# privileged host cache-clearing commands.
+# Experimental 1M-context Qwen3.8 Flash Next canary on two DGX Spark nodes.
+# This profile is intentionally separate from the native-context default.
+# High-context deep prefill can still wedge a GB10 GPU even with prefix caching
+# and MTP disabled; neither startup nor one bounded request qualifies service
+# stability. See https://github.com/vllm-project/vllm/issues/54629 and the
+# withdrawn NVIDIA forum report at https://forums.developer.nvidia.com/t/381836.
 
 recipe_version: "1"
-name: Qwen3.8-Flash-Next-NVFP4 hardened native context (TP=2)
-description: Hardened native-262K GB10 TP2 profile; soak testing is still required before production
+name: Qwen3.8-Flash-Next-NVFP4 1M experimental canary (TP=2)
+description: Experimental 1M YaRN canary for isolated soak testing; not production qualified
 
 model: Inferact/Qwen3.8-Flash-Next-NVFP4
 container: vllm-node-qwen
@@ -21,6 +18,7 @@ mods:
 
 env:
   TZ: Asia/Seoul
+  VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
 
 build_args:
   - --qwen38-flash-next
@@ -30,9 +28,9 @@ defaults:
   host: 0.0.0.0
   tensor_parallel: 2
   gpu_memory_utilization: 0.85
-  max_model_len: 262144
-  max_num_seqs: 2
-  max_num_batched_tokens: 2048
+  max_model_len: 1000000
+  max_num_seqs: 1
+  max_num_batched_tokens: 1024
 
 command: |
   vllm serve Inferact/Qwen3.8-Flash-Next-NVFP4 \
@@ -53,4 +51,5 @@ command: |
     --tool-call-parser qwen3_coder \
     --enable-auto-tool-choice \
     --speculative-config '{{"method":"mtp","num_speculative_tokens":3}}' \
+    --hf-overrides '{{"text_config": {{"rope_parameters": {{"mrope_interleaved": true, "mrope_section": [11, 11, 10], "rope_type": "yarn", "rope_theta": 10000000, "partial_rotary_factor": 0.25, "factor": 4.0, "original_max_position_embeddings": 262144}}}}}}' \
     --max-model-len {max_model_len}
