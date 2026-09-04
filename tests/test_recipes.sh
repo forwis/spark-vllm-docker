@@ -1612,7 +1612,7 @@ test_dsv4f_vision_exp_profile() {
         "vllm serve deepseek-ai/DeepSeek-V4-Flash-Vision-Exp"
         "--served-model-name deepseek-v4-flash-vision-exp"
         "--tensor-parallel-size 2"
-        "--gpu-memory-utilization 0.835"
+        "--gpu-memory-utilization 0.8"
         "--kv-cache-dtype fp8_ds_mla"
         "--block-size 256"
         "--max-model-len 1048576"
