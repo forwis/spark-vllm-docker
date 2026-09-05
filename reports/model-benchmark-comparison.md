@@ -2,7 +2,7 @@
 
 **Benchmark date:** 2026-09-05
 
-**Host:** `edge1`
+**Host:** `<host>`
 
 **Topology:** Two NVIDIA GB10 systems, tensor parallelism 2
 
@@ -134,9 +134,9 @@ For a general-purpose agent deployment, DeepSeek is the preferred choice on thes
 
 ## Source reports
 
-- [Qwen3.8 Flash Next report](/home/arbusto/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T01-44-42.208211Z_53833770--qwen3.8-flash-next.md)
-- [GLM-5.3 Flash NVFP4 report](/home/arbusto/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T05-21-51.617124Z_dbb23367--glm-5.3-flash.md)
-- [DeepSeek V4 Flash Vision-Exp report](/home/arbusto/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T02-24-58.322754Z_769e1fe6--deepseek-v4-flash-vision-exp.md)
+- [Qwen3.8 Flash Next report](/home/<user>/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T01-44-42.208211Z_53833770--qwen3.8-flash-next.md)
+- [GLM-5.3 Flash NVFP4 report](/home/<user>/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T05-21-51.617124Z_dbb23367--glm-5.3-flash.md)
+- [DeepSeek V4 Flash Vision-Exp report](/home/<user>/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T02-24-58.322754Z_769e1fe6--deepseek-v4-flash-vision-exp.md)
 
 ## Reproducibility notes
 

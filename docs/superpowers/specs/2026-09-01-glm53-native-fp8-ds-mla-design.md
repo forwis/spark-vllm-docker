@@ -4,7 +4,7 @@
 
 Replace the qualified GLM-5.3 GB10 profile's custom BF16-only sparse-MLA
 plugin with the native `fp8_ds_mla` path validated by
-`/home/arbusto/git/glm53-flash-cluster`, while retaining the existing
+`/home/<user>/git/glm53-flash-cluster`, while retaining the existing
 `LibertAIDAI/GLM-5.3-Flash-NVFP4` checkpoint and public repository interfaces.
 
 The port is deliberately limited to the cluster reference's generic NoPE MLA

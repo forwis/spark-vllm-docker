@@ -2,7 +2,7 @@
 
 **벤치마크 일자:** 2026-09-05
 
-**호스트:** `edge1`
+**호스트:** `<host>`
 
 **토폴로지:** NVIDIA GB10 시스템 2대, 텐서 병렬성(TP) 2
 
@@ -134,9 +134,9 @@ GLM은 실제 가용 호스트 메모리에 여전히 민감합니다. 수정 �
 
 ## 원본 보고서 (Source reports)
 
-- [Qwen3.8 Flash Next 보고서](/home/arbusto/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T01-44-42.208211Z_53833770--qwen3.8-flash-next.md)
-- [GLM-5.3 Flash NVFP4 보고서](/home/arbusto/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T05-21-51.617124Z_dbb23367--glm-5.3-flash.md)
-- [DeepSeek V4 Flash Vision-Exp 보고서](/home/arbusto/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T02-24-58.322754Z_769e1fe6--deepseek-v4-flash-vision-exp.md)
+- [Qwen3.8 Flash Next 보고서](/home/<user>/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T01-44-42.208211Z_53833770--qwen3.8-flash-next.md)
+- [GLM-5.3 Flash NVFP4 보고서](/home/<user>/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T05-21-51.617124Z_dbb23367--glm-5.3-flash.md)
+- [DeepSeek V4 Flash Vision-Exp 보고서](/home/<user>/git/llm-benchmarks/tool-eval-bench/runs/2026/09/2026-09-05T02-24-58.322754Z_769e1fe6--deepseek-v4-flash-vision-exp.md)
 
 ## 재현성 관련 참고 사항 (Reproducibility notes)
 

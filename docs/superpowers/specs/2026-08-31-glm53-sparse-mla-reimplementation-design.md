@@ -9,7 +9,7 @@
 
 Replace every active part of the existing GLM-5.3 Flash DFlash2/SM121 patch
 chain with a clean, reproducible integration of the sparse-MLA CUDA extension
-from `/home/arbusto/git/glm53-flash-vllm-gb10` at commit
+from `/home/<user>/git/glm53-flash-vllm-gb10` at commit
 `617d0ccc7a6cd95b5a76b4b7a73f038409150dc1`.
 
 The replacement remains a two-node DGX Spark profile exposed as

@@ -1,5 +1,5 @@
 # Recipe: GLM-5.3-Flash-NVFP4 on two DGX Spark nodes.
-# Native FP8 DS-MLA patch source: /home/arbusto/git/glm53-flash-cluster
+# Native FP8 DS-MLA patch source: /home/<user>/git/glm53-flash-cluster
 # Replace any earlier vllm-node-glm image on both nodes before launch:
 # ./build-and-copy.sh --glm53-gb10 -c --copy-parallel
 # Download only this model to every node before launch:

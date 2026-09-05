@@ -17,7 +17,7 @@
 
 ## Global Constraints
 
-- Reference source: `/home/arbusto/git/glm53-flash-vllm-gb10` at commit `617d0ccc7a6cd95b5a76b4b7a73f038409150dc1`.
+- Reference source: `/home/<user>/git/glm53-flash-vllm-gb10` at commit `617d0ccc7a6cd95b5a76b4b7a73f038409150dc1`.
 - Base image: `vllm/vllm-openai:glm53-flash-arm64-cu130`.
 - Target architecture: SM121 (`GLM53_ARCHS=121a`).
 - Runtime contract: TP2, BF16 KV, block size 256, eager execution, MTP with three speculative tokens.

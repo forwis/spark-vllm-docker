@@ -14,7 +14,7 @@
 
 - Preserve `--glm53-gb10`, image tag `vllm-node-glm`, recipe path `recipes/glm-5.3-flash-nvfp4.yaml`, model `LibertAIDAI/GLM-5.3-Flash-NVFP4`, served name `glm-5.3-flash`, TP2, and port `54351`.
 - Pin the base image to `vllm/vllm-openai:glm53-flash-arm64-cu130@sha256:905c02933be6021301db2dc284e24e3727467aa3a0f63b41d609885778a07bce`.
-- Vendor `docker/labbuild/patch_mla.py` from `/home/arbusto/git/glm53-flash-cluster` commit `50e344433076efce702029e3f446c54a80916dc9`; its required SHA-256 is `12ed6565328c8b72edae62207b2640436355475d033729046170cdf5db96954f`.
+- Vendor `docker/labbuild/patch_mla.py` from `/home/<user>/git/glm53-flash-cluster` commit `50e344433076efce702029e3f446c54a80916dc9`; its required SHA-256 is `12ed6565328c8b72edae62207b2640436355475d033729046170cdf5db96954f`.
 - Retain context 65,536, GPU utilization 0.80, two sequences, 1,024 batched tokens, block size 256, eager execution, MTP3, `glm47`, `deepseek_r1`, and multimodal processing.
 - Use `VLLM_MLA_NOPE_PAD_ROPE=1` and exact KV dtype `fp8_ds_mla`; do not add `--kv-cache-memory-bytes` or `--language-model-only`.
 - Do not import `model.patch`, `modelopt.patch`, either CC12 indexer resource patch, the lab checkpoint, 512K settings, Compose/launch/watchdog code, or host-management behavior.
@@ -219,7 +219,7 @@ Expected: FAIL because `mods/glm53-fp8-ds-mla/patch_mla.py` does not exist.
 Use `apply_patch` to add a byte-for-byte copy of:
 
 ```text
-/home/arbusto/git/glm53-flash-cluster/docker/labbuild/patch_mla.py
+/home/<user>/git/glm53-flash-cluster/docker/labbuild/patch_mla.py
 ```
 
 at `mods/glm53-fp8-ds-mla/patch_mla.py`. Do not reformat or adapt it.
@@ -230,7 +230,7 @@ Create `mods/glm53-fp8-ds-mla/UPSTREAM.md` with these exact facts:
 # GLM-5.3 native FP8 DS-MLA patch provenance
 
 `patch_mla.py` is vendored without modification from
-`/home/arbusto/git/glm53-flash-cluster/docker/labbuild/patch_mla.py` at tree
+`/home/<user>/git/glm53-flash-cluster/docker/labbuild/patch_mla.py` at tree
 commit `50e344433076efce702029e3f446c54a80916dc9`. It was introduced by commit
 `ac425d3ae51e6e1472a9000f4e242e63b6510987` and is distributed under the
 source repository's Apache-2.0 license.
@@ -409,7 +409,7 @@ Expected: one failure in the GLM native-FP8 profile because the YAML still emits
 
 In `recipes/glm-5.3-flash-nvfp4.yaml`:
 
-- identify `/home/arbusto/git/glm53-flash-cluster` as the native-FP8 patch source in the header;
+- identify `/home/<user>/git/glm53-flash-cluster` as the native-FP8 patch source in the header;
 - retain the download and operator-managed cache-reclamation instructions;
 - set the name to `GLM-5.3-Flash-NVFP4 native FP8 DS-MLA (TP=2)`;
 - set the description to `Qualified GB10 TP2 profile using native FP8 DS-MLA with the vendored NoPE patch chain`;
