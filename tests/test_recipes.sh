@@ -1592,7 +1592,7 @@ test_glm53_flash_nvfp4_profile() {
     fi
     if echo "$vllm_cmd" | grep -qF -- "--language-model-only"; then
         all_passed=false
-        log_verbose "Multimodal GLM command must not enable text-only mode"
+        log_verbose "Qualified GLM command must retain multimodal serving"
     fi
     if echo "$vllm_cmd" | grep -qF -- "--kv-cache-memory-bytes"; then
         all_passed=false
@@ -1655,6 +1655,78 @@ test_glm53_flash_nvfp4_profile() {
         log_pass "GLM-5.3 Flash uses the qualified native FP8 DS-MLA TP2 profile"
     else
         log_fail "GLM-5.3 Flash native FP8 DS-MLA TP2 profile is incomplete"
+        log_verbose "$output"
+    fi
+}
+
+# Test: GLM-5.3 Flash exposes a separate 1M-safe text profile
+test_glm53_flash_nvfp4_1m_profile() {
+    log_test "GLM-5.3 Flash NVFP4 1M text profile"
+
+    local output
+    local vllm_cmd
+    local launch_cmd
+    local override_output
+    local override_vllm_cmd
+    local all_passed=true
+
+    output=$("$PROJECT_DIR/run-recipe.py" glm-5.3-flash-nvfp4-1m \
+        --config /dev/null --dry-run -n "10.0.0.1,10.0.0.2" 2>&1)
+    vllm_cmd=$(extract_vllm_command "$output")
+    launch_cmd=$(extract_launch_cmd "$output")
+
+    for expected in \
+        "Model: LibertAIDAI/GLM-5.3-Flash-NVFP4" \
+        "Build args: --glm53-gb10" \
+        "Cluster only: Yes"; do
+        if ! echo "$output" | grep -qF -- "$expected"; then
+            all_passed=false
+            log_verbose "Missing GLM 1M profile property: $expected"
+        fi
+    done
+    for expected in \
+        'vllm serve "$glm53_model_path"' \
+        "--tensor-parallel-size 2" \
+        "--gpu-memory-utilization 0.9" \
+        "--max-model-len 1048576" \
+        "--max-num-seqs 1" \
+        "--max-num-batched-tokens 2048" \
+        "--block-size 256" \
+        "--language-model-only" \
+        "--no-enable-prefix-caching" \
+        "--moe-backend flashinfer_cutlass" \
+        "--load-format instanttensor" \
+        "--kv-cache-dtype fp8_ds_mla"; do
+        if ! echo "$vllm_cmd" | grep -qF -- "$expected"; then
+            all_passed=false
+            log_verbose "Missing GLM 1M command argument: $expected"
+        fi
+    done
+    for unexpected in "--speculative-config" "mods/instanttensor-hybrid-draft-loader"; do
+        if echo "$output" | grep -qF -- "$unexpected"; then
+            all_passed=false
+            log_verbose "GLM 1M profile unexpectedly includes: $unexpected"
+        fi
+    done
+    if ! echo "$launch_cmd" | grep -qF -- "-t vllm-node-glm"; then
+        all_passed=false
+        log_verbose "GLM 1M launch command does not use vllm-node-glm"
+    fi
+
+    override_output=$("$PROJECT_DIR/run-recipe.py" glm-5.3-flash-nvfp4-1m \
+        --config /dev/null --dry-run -n "10.0.0.1,10.0.0.2" \
+        --max-model-len 524288 2>&1)
+    override_vllm_cmd=$(extract_vllm_command "$override_output")
+    if ! echo "$override_vllm_cmd" | grep -qF -- "--max-model-len 524288" \
+        || echo "$override_vllm_cmd" | grep -qF -- "--max-model-len 1048576"; then
+        all_passed=false
+        log_verbose "GLM 1M command does not honor the max-model-len override"
+    fi
+
+    if [[ "$all_passed" == "true" ]]; then
+        log_pass "GLM-5.3 Flash separates the qualified MTP3 and 1M text profiles"
+    else
+        log_fail "GLM-5.3 Flash 1M text profile is incomplete"
         log_verbose "$output"
     fi
 }
@@ -2063,6 +2135,7 @@ main() {
     test_readme_glm_flash_cluster
     test_qwen38_flash_next_nvfp4_profile
     test_glm53_flash_nvfp4_profile
+    test_glm53_flash_nvfp4_1m_profile
     test_dsv4f_vision_exp_profile
     echo ""
     

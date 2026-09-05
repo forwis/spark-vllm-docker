@@ -254,11 +254,25 @@ replaces the earlier custom vLLM PR and FlashInfer source-wheel rebuild path:
 
 #### GLM-5.3 Flash native FP8 DS-MLA profile
 
-The two-Spark `glm-5.3-flash-nvfp4` recipe locally builds `vllm-node-glm` from
-the digest-pinned official GLM-5.3 vLLM base with the vendored NoPE/native-FP8
-patch chain from `glm53-flash-cluster`. It retains the
-`LibertAIDAI/GLM-5.3-Flash-NVFP4` checkpoint, targets SM121 TP2, uses native
-`fp8_ds_mla`, and enables model-native MTP with three speculative tokens.
+The two-Spark `glm-5.3-flash-nvfp4` recipes use `vllm-node-glm`, built from the
+digest-pinned official GLM-5.3 vLLM base with the vendored NoPE/native-FP8 patch
+chain from `glm53-flash-cluster`. Both retain the
+`LibertAIDAI/GLM-5.3-Flash-NVFP4` checkpoint, target SM121 TP2, and use native
+`fp8_ds_mla`.
+
+Choose the profile for the workload:
+
+- `glm-5.3-flash-nvfp4` is the qualified 262K multimodal profile with
+  model-native MTP3 and up to four sequences.
+- `glm-5.3-flash-nvfp4-1m` exposes the checkpoint's native 1,048,576-token text
+  window. It uses language-model-only mode, one sequence, no prefix caching,
+  and no speculative decoding. Those boundaries are required on two GB10s:
+  multimodal profiling and aligned Mamba prefix checkpoints leave only about
+  5.55 GiB of KV cache versus approximately 8.53 GiB required, while the MTP3
+  sparse-indexer TopK path crashes or stalls during long prefill on SM121.
+
+Use `--max-model-len` with the 1M recipe to select a smaller text window when
+greater practical concurrency is more important than maximum context.
 
 Build, download, and launch the single-model workflow:
 
@@ -266,6 +280,8 @@ Build, download, and launch the single-model workflow:
 ./build-and-copy.sh --glm53-gb10 -c --copy-parallel
 ./hf-download.sh LibertAIDAI/GLM-5.3-Flash-NVFP4 -c --copy-parallel
 ./run-recipe.sh recipes/glm-5.3-flash-nvfp4.yaml
+# Or launch the 1M text profile:
+./run-recipe.sh recipes/glm-5.3-flash-nvfp4-1m.yaml
 ```
 
 ### 2026-08-27

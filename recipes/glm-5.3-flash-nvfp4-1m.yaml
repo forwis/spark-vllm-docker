@@ -1,0 +1,73 @@
+# Recipe: GLM-5.3-Flash-NVFP4 1M text context on two DGX Spark nodes.
+# This profile preserves the qualified native FP8 DS-MLA stack while omitting
+# MTP, multimodal serving, and prefix caching for reliable long-context prefill.
+# Before every launch, reclaim filesystem caches on both hosts using an
+# operator-approved host procedure. This recipe does not run privileged host
+# cache-clearing commands.
+
+recipe_version: "1"
+name: GLM-5.3-Flash-NVFP4 native FP8 DS-MLA 1M text (TP=2)
+description: GB10 TP2 text profile for the checkpoint's native 1,048,576-token context
+
+model: LibertAIDAI/GLM-5.3-Flash-NVFP4
+container: vllm-node-glm
+cluster_only: true
+
+env:
+  TORCH_CUDA_ARCH_LIST: "12.1a"
+  FLASHINFER_CUDA_ARCH_LIST: "12.1a"
+  FLASHINFER_DISABLE_VERSION_CHECK: "1"
+  VLLM_MLA_NOPE_PAD_ROPE: "1"
+  NCCL_CUMEM_ENABLE: "0"
+  NCCL_NVLS_ENABLE: "0"
+  NCCL_CROSS_NIC: "0"
+  NCCL_IB_MERGE_NICS: "0"
+  TORCH_NCCL_ASYNC_ERROR_HANDLING: "1"
+  VLLM_ENGINE_READY_TIMEOUT_S: "3600"
+
+build_args:
+  - --glm53-gb10
+
+defaults:
+  port: 54351
+  host: 0.0.0.0
+  tensor_parallel: 2
+  gpu_memory_utilization: 0.90
+  max_model_len: 1048576
+  max_num_seqs: 1
+  max_num_batched_tokens: 2048
+  block_size: 256
+
+command: |
+  glm53_model_cache=/root/.cache/huggingface/hub/models--LibertAIDAI--GLM-5.3-Flash-NVFP4
+  glm53_model_ref="$glm53_model_cache/refs/main"
+  if [ ! -r "$glm53_model_ref" ]; then
+    echo "Error: GLM-5.3 snapshot ref is missing: $glm53_model_ref" >&2
+    exit 1
+  fi
+  glm53_model_snapshot="$(cat "$glm53_model_ref")"
+  glm53_model_path="$glm53_model_cache/snapshots/$glm53_model_snapshot"
+  if [ ! -f "$glm53_model_path/processor_config.json" ]; then
+    echo "Error: GLM-5.3 snapshot is incomplete: missing processor_config.json in $glm53_model_path" >&2
+    exit 1
+  fi
+  vllm serve "$glm53_model_path" \
+    --served-model-name glm-5.3-flash \
+    --host {host} \
+    --port {port} \
+    --trust-remote-code \
+    --language-model-only \
+    --tensor-parallel-size {tensor_parallel} \
+    --gpu-memory-utilization {gpu_memory_utilization} \
+    --max-model-len {max_model_len} \
+    --max-num-seqs {max_num_seqs} \
+    --max-num-batched-tokens {max_num_batched_tokens} \
+    --block-size {block_size} \
+    --no-enable-prefix-caching \
+    --moe-backend flashinfer_cutlass \
+    --enforce-eager \
+    --enable-auto-tool-choice \
+    --load-format instanttensor \
+    --tool-call-parser glm47 \
+    --reasoning-parser glm45 \
+    --kv-cache-dtype fp8_ds_mla
