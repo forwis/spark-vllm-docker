@@ -40,8 +40,6 @@ defaults:
   served_model_name: glm-4.7-flash
 
 # Environment variables to set in the container
-env:
-  TZ: Asia/Seoul
   # Add any required env vars here
 
 # The vLLM serve command template

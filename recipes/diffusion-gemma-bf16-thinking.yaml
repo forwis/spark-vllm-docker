@@ -27,8 +27,6 @@ defaults:
   max_num_seqs: 10
 
 # Environment variables
-env:
-  TZ: Asia/Seoul
 
 # The vLLM serve command template
 command: |

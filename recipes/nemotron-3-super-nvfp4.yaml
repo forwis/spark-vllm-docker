@@ -13,7 +13,6 @@ solo_only: false
 #   - mods/nemotron-super
 
 env:
-  TZ: Asia/Seoul
   VLLM_FLASHINFER_ALLREDUCE_BACKEND: trtllm
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: 1
 

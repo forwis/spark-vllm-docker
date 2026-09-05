@@ -941,10 +941,12 @@ test_launch_cmd_env_passthrough() {
     output=$("$PROJECT_DIR/run-recipe.py" "$recipe_name" --dry-run --solo -e HF_TOKEN=test123 -e MY_VAR=hello 2>&1)
     launch_cmd=$(extract_launch_cmd "$output")
     
-    if echo "$launch_cmd" | grep -q "\-e HF_TOKEN=test123" && echo "$launch_cmd" | grep -q "\-e MY_VAR=hello"; then
+    if echo "$launch_cmd" | grep -qF -- "-e HF_TOKEN=<redacted>" \
+        && echo "$launch_cmd" | grep -qF -- "-e MY_VAR=hello" \
+        && ! echo "$output" | grep -qF -- "HF_TOKEN=test123"; then
         log_pass "Launch command includes -e env vars"
     else
-        log_fail "-e env vars not found in launch command"
+        log_fail "-e env vars were omitted or HF_TOKEN was exposed"
         log_verbose "Launch cmd: $launch_cmd"
     fi
 }
@@ -971,17 +973,86 @@ test_wrapper_dry_run_redacts_vllm_api_key() {
     fi
 }
 
-# Test: recipe environment is passed when the container is created
-test_launch_cmd_recipe_env_passthrough() {
-    log_test "Launch command includes recipe environment vars"
+# Test: run-recipe supplies the host timezone without recipe configuration
+test_launch_cmd_system_timezone() {
+    log_test "Launch command includes the centralized system timezone"
 
-    output=$("$PROJECT_DIR/run-recipe.py" qwen3.8-flash-next-nvfp4 --dry-run -n "10.0.0.1,10.0.0.2" 2>&1)
+    local temp_recipe
+    local output
+    local launch_cmd
+    temp_recipe=$(mktemp)
+    cat > "$temp_recipe" << 'EOF'
+recipe_version: "1"
+name: Default Environment Test
+container: test-container
+command: echo "test"
+EOF
+
+    output=$(TZ=Pacific/Honolulu "$PROJECT_DIR/run-recipe.py" \
+        "$temp_recipe" --dry-run --solo 2>&1)
+    rm -f "$temp_recipe"
     launch_cmd=$(extract_launch_cmd "$output")
-    
-    if echo "$launch_cmd" | grep -q "-e TZ=Asia/Seoul"; then
-        log_pass "Launch command includes recipe environment vars"
+
+    if echo "$launch_cmd" | grep -q -- "-e TZ=Pacific/Honolulu"; then
+        log_pass "Launch command includes the centralized system timezone"
     else
-        log_fail "Recipe environment vars not found in launch command"
+        log_fail "Centralized system timezone not found in launch command"
+        log_verbose "Launch cmd: $launch_cmd"
+    fi
+}
+
+# Test: non-timezone recipe environment is still passed to the container
+test_launch_cmd_recipe_env_passthrough() {
+    log_test "Launch command includes recipe environment variables"
+
+    local output
+    local launch_cmd
+    output=$("$PROJECT_DIR/run-recipe.py" qwen3.5-35b-a3b-fp8 \
+        --dry-run --solo 2>&1)
+    launch_cmd=$(extract_launch_cmd "$output")
+
+    if echo "$launch_cmd" | grep -qF -- "-e VLLM_MARLIN_USE_ATOMIC_ADD=1"; then
+        log_pass "Launch command includes recipe environment variables"
+    else
+        log_fail "Recipe environment variable not found in launch command"
+        log_verbose "Launch cmd: $launch_cmd"
+    fi
+}
+
+# Test: run-recipe forwards and redacts HF_TOKEN inherited from the host
+test_launch_cmd_inherited_hf_token() {
+    log_test "Launch command forwards and redacts inherited HF_TOKEN"
+
+    local output
+    local launch_cmd
+    output=$(HF_TOKEN=host-secret-token "$PROJECT_DIR/run-recipe.py" \
+        glm-4.7-flash-awq --dry-run --solo 2>&1)
+    launch_cmd=$(extract_launch_cmd "$output")
+
+    if echo "$launch_cmd" | grep -qF -- "-e HF_TOKEN=<redacted>" \
+        && ! echo "$output" | grep -qF -- "host-secret-token"; then
+        log_pass "Launch command forwards and redacts inherited HF_TOKEN"
+    else
+        log_fail "Inherited HF_TOKEN was omitted or exposed"
+        log_verbose "$output"
+    fi
+}
+
+# Test: explicit environment arguments override centralized defaults
+test_launch_cmd_explicit_env_overrides_default() {
+    log_test "Explicit environment arguments override centralized defaults"
+
+    local output
+    local launch_cmd
+    output=$(TZ=Asia/Seoul "$PROJECT_DIR/run-recipe.py" glm-4.7-flash-awq \
+        --dry-run --solo -e TZ=Etc/UTC 2>&1)
+    launch_cmd=$(extract_launch_cmd "$output")
+
+    if echo "$launch_cmd" | grep -qF -- "-e TZ=Etc/UTC" \
+        && ! echo "$launch_cmd" | grep -qF -- "TZ=Asia/Seoul"; then
+        log_pass "Explicit environment arguments override centralized defaults"
+    else
+        log_fail "Explicit timezone did not replace the centralized default"
         log_verbose "Launch cmd: $launch_cmd"
     fi
 }
@@ -1965,7 +2036,10 @@ main() {
     test_launch_cmd_no_solo_in_cluster
     test_launch_cmd_env_passthrough
     test_wrapper_dry_run_redacts_vllm_api_key
+    test_launch_cmd_system_timezone
     test_launch_cmd_recipe_env_passthrough
+    test_launch_cmd_inherited_hf_token
+    test_launch_cmd_explicit_env_overrides_default
     test_launch_cmd_publish_passthrough
     test_launch_cmd_publish_rejects_cluster
     test_launch_cmd_volume_passthrough

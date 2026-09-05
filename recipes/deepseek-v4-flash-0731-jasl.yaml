@@ -24,8 +24,6 @@ defaults:
   max_num_seqs: 8
   max_num_batched_tokens: 8192
 
-env:
-  TZ: Asia/Seoul
 
 command: |
   vllm serve deepseek-ai/DeepSeek-V4-Flash-0731 \

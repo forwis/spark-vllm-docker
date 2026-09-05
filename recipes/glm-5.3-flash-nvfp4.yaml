@@ -21,7 +21,6 @@ mods:
   - mods/instanttensor-hybrid-draft-loader
 
 env:
-  TZ: Asia/Seoul
   TORCH_CUDA_ARCH_LIST: "12.1a"
   FLASHINFER_CUDA_ARCH_LIST: "12.1a"
   FLASHINFER_DISABLE_VERSION_CHECK: "1"

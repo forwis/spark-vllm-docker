@@ -11,8 +11,6 @@ container: vllm-node
 cluster_only: false
 solo_only: false
 
-env:
-  TZ: Asia/Seoul
 
 defaults:
   port: 8000

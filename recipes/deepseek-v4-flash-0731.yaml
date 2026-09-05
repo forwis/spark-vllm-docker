@@ -30,7 +30,6 @@ defaults:
   num_speculative_tokens: 5
 
 env:
-  TZ: Asia/Seoul
   CUTE_DSL_ARCH: "sm_121a"
   VLLM_USE_AOT_COMPILE: "1"
   VLLM_USE_BREAKABLE_CUDAGRAPH: "0"

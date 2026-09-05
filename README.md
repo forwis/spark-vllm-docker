@@ -1804,18 +1804,23 @@ Options for `launch-cluster.sh` must appear before `exec`. In cluster mode, each
 volume is mapped on every launched node, so its local path must be suitable on
 every host.
 
-For gated Hugging Face models, export the token for host-side downloads and pass
-it into the container with `-e`:
+`run-recipe.sh` automatically passes the detected host timezone into the
+container. It prefers the host `TZ`, then `/etc/timezone`, then the
+`/etc/localtime` zoneinfo symlink, and falls back to `Asia/Seoul`.
+
+For gated Hugging Face models, export the token for host-side downloads.
+`run-recipe.sh` automatically passes a non-empty `HF_TOKEN` into the container:
 
 ```bash
 export HF_TOKEN="YOUR_TOKEN"
-./run-recipe.sh RECIPE_NAME -e HF_TOKEN="$HF_TOKEN" --setup
+./run-recipe.sh RECIPE_NAME --setup
 
 # Direct launch
 ./launch-cluster.sh -e HF_TOKEN="$HF_TOKEN" exec vllm serve MODEL_NAME -tp 2
 ```
 
-Do not print or share the expanded command because it contains the token.
+Recipe dry runs redact the token. Do not expose it through other shell
+diagnostics or logs.
 
 ### Recipe Overrides and Additional vLLM Arguments
 

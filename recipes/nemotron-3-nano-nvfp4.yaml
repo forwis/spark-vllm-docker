@@ -15,8 +15,6 @@ container: vllm-node
 # This model can only run on single node (solo)
 solo_only: true
 
-env:
-  TZ: Asia/Seoul
 
 # No mods required
 mods: 

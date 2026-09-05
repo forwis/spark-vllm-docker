@@ -28,8 +28,6 @@ defaults:
   max_num_batched_tokens: 4096
 
 # Environment variables
-env:
-  TZ: Asia/Seoul
 
 # The vLLM serve command template
 command: |

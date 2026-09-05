@@ -90,6 +90,7 @@ import subprocess
 import shlex
 import sys
 import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -120,11 +121,67 @@ def runtime_vllm_pr_number(value: str) -> str:
 
 
 def dry_run_env_var(env_var: str) -> str:
-    """Render environment assignments without exposing the runtime API key."""
+    """Render environment assignments without exposing runtime credentials."""
     key, separator, _value = env_var.partition("=")
-    if separator and key == "VLLM_API_KEY":
+    if separator and key in {"HF_TOKEN", "VLLM_API_KEY"}:
         return f"{key}=<redacted>"
     return env_var
+
+
+def detect_system_timezone(
+    environ: Mapping[str, str] | None = None,
+    timezone_file: Path = Path("/etc/timezone"),
+    localtime_file: Path = Path("/etc/localtime"),
+) -> str:
+    """Return the host IANA timezone, with a stable project fallback."""
+    environment = os.environ if environ is None else environ
+    if timezone := environment.get("TZ", "").strip():
+        return timezone
+
+    try:
+        if timezone := timezone_file.read_text(encoding="utf-8").strip():
+            return timezone
+    except (OSError, UnicodeError):
+        pass
+
+    try:
+        resolved_localtime = localtime_file.resolve(strict=True)
+        zoneinfo_index = resolved_localtime.parts.index("zoneinfo")
+        timezone_parts = resolved_localtime.parts[zoneinfo_index + 1 :]
+        if timezone_parts:
+            return "/".join(timezone_parts)
+    except (OSError, ValueError):
+        pass
+
+    return "Asia/Seoul"
+
+
+def build_container_env_vars(
+    recipe: dict, cli_env_vars: list[str]
+) -> list[str]:
+    """Build container environment with explicit values overriding defaults."""
+    env_by_key: dict[str, str] = {"TZ": detect_system_timezone()}
+
+    hf_token = os.environ.get("HF_TOKEN")
+    if hf_token:
+        env_by_key["HF_TOKEN"] = hf_token
+
+    for key, value in (recipe.get("env") or {}).items():
+        env_by_key[str(key)] = str(value)
+
+    invalid_assignments = []
+    for env_var in cli_env_vars:
+        key, separator, value = env_var.partition("=")
+        if separator:
+            env_by_key[key] = value
+        else:
+            # Preserve launch-cluster.sh's existing validation and error message.
+            invalid_assignments.append(env_var)
+
+    return [
+        *(f"{key}={value}" for key, value in env_by_key.items()),
+        *invalid_assignments,
+    ]
 
 
 class OrderedLaunchLayerAction(argparse.Action):
@@ -1348,9 +1405,7 @@ Examples:
         extra_args=extra_args,
         use_ray=use_ray,
     )
-    recipe_env_vars = [
-        f"{key}={value}" for key, value in recipe.get("env", {}).items()
-    ]
+    container_env_vars = build_container_env_vars(recipe, args.env_vars)
 
     if args.dry_run:
         print("=== Generated Launch Script ===")
@@ -1382,9 +1437,7 @@ Examples:
             cmd_parts.extend(["-n", ",".join(nodes)])
         if args.nccl_debug:
             cmd_parts.extend(["--nccl-debug", args.nccl_debug])
-        for env_var in recipe_env_vars:
-            cmd_parts.extend(["-e", dry_run_env_var(env_var)])
-        for env_var in args.env_vars:
+        for env_var in container_env_vars:
             cmd_parts.extend(["-e", dry_run_env_var(env_var)])
         for port_mapping in args.port_mappings:
             cmd_parts.extend(["-p", port_mapping])
@@ -1476,9 +1529,7 @@ Examples:
         if args.nccl_debug:
             cmd.extend(["--nccl-debug", args.nccl_debug])
 
-        for env_var in recipe_env_vars:
-            cmd.extend(["-e", env_var])
-        for env_var in args.env_vars:
+        for env_var in container_env_vars:
             cmd.extend(["-e", env_var])
 
         for port_mapping in args.port_mappings:

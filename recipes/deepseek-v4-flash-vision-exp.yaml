@@ -39,7 +39,6 @@ defaults:
   long_prefill_token_threshold: 1024
 
 env:
-  TZ: Asia/Seoul
   VLLM_USE_BREAKABLE_CUDAGRAPH: "0"
 
 command: |

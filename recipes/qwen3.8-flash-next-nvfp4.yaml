@@ -19,8 +19,6 @@ cluster_only: true
 mods:
   - mods/qwen38-flash-next-stability
 
-env:
-  TZ: Asia/Seoul
 
 build_args:
   - --qwen38-flash-next

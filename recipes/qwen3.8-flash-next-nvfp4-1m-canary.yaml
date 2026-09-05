@@ -17,7 +17,6 @@ mods:
   - mods/qwen38-flash-next-stability
 
 env:
-  TZ: Asia/Seoul
   VLLM_ALLOW_LONG_MAX_MODEL_LEN: "1"
 
 build_args:

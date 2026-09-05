@@ -133,6 +133,10 @@ env:
   SOME_VAR: "value"
 ```
 
+Do not repeat `TZ` in recipes. The runner uses the host `TZ` environment
+variable when set, otherwise reads `/etc/timezone`, then the `/etc/localtime`
+zoneinfo symlink, and falls back to `Asia/Seoul` if detection fails.
+
 ### Build Arguments
 
 The `build_args` field passes flags to `build-and-copy.sh`:
@@ -271,15 +275,17 @@ volume mappings. Put `launch-cluster.sh` options before `exec`.
 In cluster mode, each volume mapping is applied to every node. Ensure the local
 path exists with suitable contents and permissions on each host.
 
-For a gated Hugging Face model, export the token for host-side downloads and
-also pass it to the container:
+For a gated Hugging Face model, export the token for host-side downloads.
+`run-recipe.sh` automatically passes a non-empty host `HF_TOKEN` into the
+container:
 
 ```bash
 export HF_TOKEN="YOUR_TOKEN"
-./run-recipe.sh my-recipe -e HF_TOKEN="$HF_TOKEN" --setup
+./run-recipe.sh my-recipe --setup
 ```
 
-Avoid printing or sharing the expanded command because it contains the token.
+Dry runs redact the token. Avoid exposing it through other shell diagnostics or
+logs.
 
 ## Extra vLLM Arguments
 
