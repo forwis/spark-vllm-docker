@@ -304,6 +304,12 @@ test_glm53_gb10_profile_builds_native_fp8_mla_image() {
         '    python3 /tmp/glm53-patch-mla.py; \' \
         'Dockerfile.glm53-fp8-ds-mla'
     assert_fixture_file_has_line \
+        '    uv pip install --system --no-deps instanttensor==0.1.9; \' \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
+        "    python3 -c \"import importlib.metadata as m; import instanttensor; assert m.version('InstantTensor') == '0.1.9'\"; \\" \
+        'Dockerfile.glm53-fp8-ds-mla'
+    assert_fixture_file_has_line \
         "    grep -Fq 'VLLM_MLA_NOPE_PAD_ROPE' \"\$VLLM_ROOT/model_executor/layers/mla.py\"; \\" \
         'Dockerfile.glm53-fp8-ds-mla'
     assert_fixture_file_has_line \
